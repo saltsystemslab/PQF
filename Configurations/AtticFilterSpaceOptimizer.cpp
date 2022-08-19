@@ -20,6 +20,7 @@ void calcMinCost(double cacheLineSize) {
     double bestRealKeysPerBucket = 0;
     double bestVirtualKeysPerBucket = 0;
     double bestMiniBucketCount = 0;
+    double bestNumFrontyardToBackyard = 0;
 
     // double minCostPerBackyardKey = 1000;
 
@@ -56,6 +57,7 @@ void calcMinCost(double cacheLineSize) {
                     bestRealKeysPerBucket = numRealKeysInCacheline;
                     bestVirtualKeysPerBucket = virtualKeysPerBucket;
                     bestMiniBucketCount = miniFilterBuckets;
+                    bestNumFrontyardToBackyard = numFrontyardBucketsToOneBackyardBucket;
                     // cout << costPerKey << " " << numRealKeysInCacheline << " " << virtualKeysPerBucket << " " << miniFilterBuckets << " " << costPerFrontyardKey << " " << costPerBackyardKey << " " << numFrontyardBucketsToOneBackyardBucket << endl;
                     // cout << minCostPerBackyardKey << " " << numFrontyardBucketsToOneBackyardBucket << " " << expectedOverflow << " " << expectedVirtualOverflow << endl;
                 }
@@ -63,7 +65,7 @@ void calcMinCost(double cacheLineSize) {
         }
     }
 
-    cout << minCostPerKey << " " << bestRealKeysPerBucket << " " << bestVirtualKeysPerBucket << " " << bestMiniBucketCount << endl;
+    cout << minCostPerKey << " " << bestRealKeysPerBucket << " " << bestVirtualKeysPerBucket << " " << bestMiniBucketCount << " " << bestNumFrontyardToBackyard << endl;
     // cout << minCostPerBackyardKey << endl;
 }
 
@@ -80,5 +82,8 @@ int main() {
 
     cout << "Optimizing 64 byte frontyard buckets: ";
     calcMinCost(512);
+
+    cout << "Optimizing 256 byte frontyard buckets: ";
+    calcMinCost(2048);
     
 }

@@ -12,12 +12,14 @@ double expectedNormalWithCuttoff(double stddev, double cutoff) { //cuttoff is be
 void calcMinCost(double cacheLineSize, double numKeysInCacheline) {
     double backyardLineSize = 512;
     double maxBackyardKeys = 37;
+    double maxFrontyardBucketsPerBackyardBucket = 8;
 
     double maxMiniFilterBuckets = cacheLineSize-9*numKeysInCacheline; //8 bits for remainder, 1 bit for minifilter
     
     double minCostPerKey = 1000000.0;
     double bestBackyardKeys = 0;
     double bestMiniFilterBuckets = 0;
+    double bestNumFrontyardToBackyard = 0;
 
     for(double maxBackyardKeys = 32; maxBackyardKeys <= 37; maxBackyardKeys++) {
         maxMiniFilterBuckets = min(maxMiniFilterBuckets, (double)512-maxBackyardKeys*9-(maxBackyardKeys+((size_t)maxBackyardKeys%2))*4);
@@ -28,21 +30,21 @@ void calcMinCost(double cacheLineSize, double numKeysInCacheline) {
             double expectedUnderfill = expectedNormalWithCuttoff(stddev, -diff);
             double expectedKeysInFrontyardBucket = numKeysInCacheline-expectedUnderfill;
             double costPerFrontyardKey = cacheLineSize/(expectedKeysInFrontyardBucket);
-            double numFrontyardBucketsToOneBackyardBucket = floor((maxBackyardKeys-8)/expectedOverflow);
+            double numFrontyardBucketsToOneBackyardBucket = min(floor((maxBackyardKeys-8)/expectedOverflow), maxFrontyardBucketsPerBackyardBucket);
             double costPerBackyardKey = backyardLineSize / (expectedOverflow*numFrontyardBucketsToOneBackyardBucket);
             double costPerKey = (costPerFrontyardKey*expectedKeysInFrontyardBucket+costPerBackyardKey*expectedOverflow)/miniFilterBuckets;
 
-            // cout << costPerKey << " " << miniFilterBuckets << " " << maxBackyardKeys << " " << expectedOverflow << " " << numFrontyardBucketsToOneBackyardBucket << endl;
-
-            if(costPerKey < minCostPerKey) {
+            if(costPerKey <= minCostPerKey) {
                 minCostPerKey = costPerKey;
                 bestMiniFilterBuckets = miniFilterBuckets;
                 bestBackyardKeys = maxBackyardKeys;
+                bestNumFrontyardToBackyard = numFrontyardBucketsToOneBackyardBucket;
+                // cout << costPerKey << " " << miniFilterBuckets << " " << maxBackyardKeys << " " << expectedOverflow << " " << numFrontyardBucketsToOneBackyardBucket << endl;
             }
         }
     }
 
-    cout << minCostPerKey << " " << bestMiniFilterBuckets << " " << bestBackyardKeys << endl;
+    cout << minCostPerKey << " " << bestMiniFilterBuckets << " " << bestBackyardKeys << " " << bestNumFrontyardToBackyard << endl;
 }
 
 int main() {
