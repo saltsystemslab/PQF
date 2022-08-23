@@ -4,6 +4,10 @@
 #include <iostream>
 #include <cstddef>
 
+namespace DynamicPrefixFilter {
+    constexpr bool DEBUG = true;
+}
+
 void printBinaryUInt64(uint64_t x, bool newline=false, int divider=64) {
     for(int i=0; i < 64; i++) {
         if(i>0 && i%divider == 0) std::cout << ' ';

@@ -7,6 +7,7 @@
 #include <immintrin.h>
 #include <algorithm>
 #include <iostream>
+#include <cassert>
 #include "TestUtility.hpp"
 
 //Once get this working, turn this into more of an interface by not having this actually store the data
