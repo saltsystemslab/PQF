@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <iostream>
 #include <cassert>
+#include <optional>
 #include "TestUtility.hpp"
 
 //Once get this working, turn this into more of an interface by not having this actually store the data
@@ -150,34 +151,38 @@ namespace DynamicPrefixFilter {
 
         //TODO: implement & rename to something a bit more descriptive
         //Keys are zeros, so "fix overflow" basically makes it so  that we overflow the key, not the mini bucket. We essentially aim to replace the last zero with a one
-        void fixOverflow() {
+        uint64_t fixOverflow() {
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
             uint64_t lastSegmentInverse = (~(*fastCastFilter)) & lastSegmentMask;
+            uint64_t offsetMiniBuckets = NumBits-(NumUllongs-1)*64; //Again bad name. We want to return the mini bucket index, and to do that we are counting how many mini buckets from the end we have. Originally had this be popcount, but we don't need popcount, since we only continue if everything is ones basically!
             if (lastSegmentInverse != 0) {
                 // *fastCastFilter = (*fastCastFilter) | _pdep_u64(1, lastSegmentInverse); //maybe some way to do with pdep but then need to reverse the order of the bits and back again
-                *fastCastFilter = (*fastCastFilter) | (1ull << (63 - _lzcnt_u64(lastSegmentInverse)));
-                return;
+                size_t skipMiniBuckets = _lzcnt_u64(lastSegmentInverse); //get a better name oops
+                *fastCastFilter = (*fastCastFilter) | (1ull << (63-skipMiniBuckets));
+                return NumMiniBuckets-(skipMiniBuckets - 64 + offsetMiniBuckets)-1;
             }
             fastCastFilter--;
             assert(fastCastFilter >= reinterpret_cast<uint64_t*> (&filterBytes));
             uint64_t segmentInverse = ~(*fastCastFilter);
-            for(; segmentInverse == 0; fastCastFilter--) {
+            for(; segmentInverse == 0; offsetMiniBuckets += 64, fastCastFilter--) {
                 assert(fastCastFilter >= reinterpret_cast<uint64_t*> (&filterBytes));
                 segmentInverse = ~(*fastCastFilter);
             }
             // *fastCastFilter = (*fastCastFilter) | _pdep_u64(1, segmentInverse);
-            *fastCastFilter = (*fastCastFilter) | (1ull << (63 - _lzcnt_u64(segmentInverse)));
+            size_t skipMiniBuckets = _lzcnt_u64(segmentInverse);
+            *fastCastFilter = (*fastCastFilter) | (1ull << (63-skipMiniBuckets));
+            return NumMiniBuckets-skipMiniBuckets-offsetMiniBuckets-1;
         }
         
         //Returns true if the filter was full and had to kick somebody to make room.
         //Since we assume that keyIndex was obtained with a query or is at least valid, we have an implicit assertion that keyIndex <= NumKeys (so can essentially be the key bigger than all the other keys in the filter & it becomes the overflow)
-        bool insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
+        std::optional<uint64_t> insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
             std::size_t bitIndex = miniBucketIndex + keyIndex;
             bool overflow = shiftFilterBits(bitIndex);
             if (overflow) {
-                fixOverflow();
+                return fixOverflow();
             }
-            return overflow;
+            return {};
         }
 
         //Functions for testing below
@@ -192,12 +197,13 @@ namespace DynamicPrefixFilter {
             }
         }
 
-        bool testInsert(std::size_t miniBucketIndex, std::size_t keyIndex) {
+        std::optional<uint64_t> testInsert(std::size_t miniBucketIndex, std::size_t keyIndex) {
             // std::cout << "Trying to insert " << miniBucketIndex << " " << keyIndex << std::endl;
             // printMiniFilter(filterBytes, true);
             // std::cout << std::endl;
             std::array<uint8_t, NumBytes> expectedFilterBytes;
-            bool expectedOverflow = 0;
+            bool expectedOverflowBit = 0;
+            std::optional<uint64_t> expectedOverflow = {};
             // bool startedShifting = false;
             int64_t bitsNeedToSet = miniBucketIndex+keyIndex;
             int64_t bitsLeftInFilter = NumBits;
@@ -207,11 +213,11 @@ namespace DynamicPrefixFilter {
                 uint8_t shiftedByte = 0;
                 for(int64_t j{0}; j < 8 && j < bitsLeftInFilter; j++, byte >>= 1, bitsNeedToSet--) {
                     if(bitsNeedToSet <= 0) {
-                        shiftedByte += ((uint8_t)expectedOverflow) << j;
-                        if(!expectedOverflow) {
+                        shiftedByte += ((uint8_t)expectedOverflowBit) << j;
+                        if(!expectedOverflowBit) {
                             lastZeroPos = i*8 + j;
                         }
-                        expectedOverflow = byte & 1;
+                        expectedOverflowBit = byte & 1;
                     }
                     else {
                         shiftedByte += (byte & 1) << j;
@@ -223,14 +229,15 @@ namespace DynamicPrefixFilter {
                 expectedFilterBytes[i] = shiftedByte;
                 bitsLeftInFilter -= 8;
             }
-            if(expectedOverflow) {
+            if(expectedOverflowBit) {
                 uint8_t* byteToChange = &expectedFilterBytes[0];
+                expectedOverflow = lastZeroPos - NumKeys;
                 for(size_t i{1}; lastZeroPos >= 8; lastZeroPos-=8, i++) {
                     byteToChange = &expectedFilterBytes[i];
                 }
                 *byteToChange |= 1 << lastZeroPos;
             }
-            bool overflow = insert(miniBucketIndex, keyIndex);
+            std::optional<uint64_t> overflow = insert(miniBucketIndex, keyIndex);
             // std::cout << std::endl;
             // printMiniFilter(filterBytes);
             // std::cout << std::endl;
@@ -239,7 +246,11 @@ namespace DynamicPrefixFilter {
             // std::cout << std::endl;
             // std::cout << overflow << " " << expectedOverflow << std::endl;
             assert(expectedFilterBytes == filterBytes);
-            assert(overflow == expectedOverflow);
+            assert(overflow.has_value() == expectedOverflow.has_value());
+            if(overflow.has_value()) {
+                // std::cout << (*overflow) << " " << (*expectedOverflow) << std::endl;
+                assert(*overflow == *expectedOverflow);
+            }
             return overflow;
         }
 

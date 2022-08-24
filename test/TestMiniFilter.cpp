@@ -2,6 +2,7 @@
 #include <cassert>
 #include <array>
 #include <random>
+#include <set>
 #include "MiniFilter.hpp"
 #include "TestUtility.hpp"
 
@@ -38,8 +39,8 @@ struct alignas(1) FakeBucket {
         });
     }
 
-    bool insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
-        bool retval = false;
+    std::optional<uint64_t> insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
+        std::optional<uint64_t> retval;
         basicFunctionTestWrapper([&] () -> void {
             retval = filterBytes.testInsert(miniBucketIndex, keyIndex);
         });
@@ -54,8 +55,14 @@ struct alignas(1) FakeBucket {
             assert(bounds == expectedBounds);
         });
     }
+
+    pair<size_t, size_t> query(size_t miniBucketIndex) {
+        return filterBytes.queryMiniBucketBounds(miniBucketIndex);
+    }
 };
 
+//TODO: Just changed what MiniFilter insert returns, so verify it returns the correct mini bucket of the thing that overflowed (we know the key index is just the highest one).
+//In fact I can guarantee it *doesn't* return the right thing.
 template<size_t NumKeys, size_t NumMiniBuckets>
 void testBucket(mt19937& generator) {
     cout << "Testing with " << NumKeys << " keys and " << NumMiniBuckets << " mini buckets." << endl;
@@ -68,7 +75,7 @@ void testBucket(mt19937& generator) {
         // uniform_int_distribution<uint8_t> keyIndexDist(0, i);
         size_t randomMiniBucketIndex = NumMiniBuckets-5;
         size_t randomKeyIndex = 0;
-        assert(temp.insert(randomMiniBucketIndex, randomKeyIndex) == false);
+        assert(!temp.insert(randomMiniBucketIndex, randomKeyIndex).has_value());
     }
     cout << "pass" << endl;
 
@@ -77,11 +84,11 @@ void testBucket(mt19937& generator) {
         // uniform_int_distribution<uint8_t> keyIndexDist(0, NumKeys+1);
         size_t randomMiniBucketIndex = 5;
         size_t randomKeyIndex = 0;
-        assert(temp.insert(randomMiniBucketIndex, randomKeyIndex) == true);
+        assert(temp.insert(randomMiniBucketIndex, randomKeyIndex).has_value());
     }
     cout << "pass" << endl;
 
-    //Bad random cause it favors longer chains but whatever we'll just keep it here as a test
+    //Bad random cause it favors longer chains and isn't uniform but whatever we'll just keep it here as a test
     cout << "Testing random inserts." << endl;
     temp = FakeBucket<NumKeys, NumMiniBuckets>(generator);
     cout << "Testing filling the mini filter: ";
@@ -93,18 +100,19 @@ void testBucket(mt19937& generator) {
         size_t randomMiniBucketIndex = miniBucketIndexDist(generator);
         size_t randomKeyIndex =  posOfKeyToInsert-randomMiniBucketIndex;
         // cout << "Inserting " << randomKeyIndex << " " << randomMiniBucketIndex << endl;
-        assert(temp.insert(randomMiniBucketIndex, randomKeyIndex) == false);
+        assert(!temp.insert(randomMiniBucketIndex, randomKeyIndex).has_value());
     }
     cout << "pass" << endl;
     
     cout << "Testing overflowing the mini filter: ";
-    for(size_t i{1}; i <= 10; i++) {
+    for(size_t i{1}; i <= NumKeys; i++) {
         uniform_int_distribution<size_t> posDist(0, NumKeys+NumMiniBuckets-1);
         size_t posOfKeyToInsert = posDist(generator);
         uniform_int_distribution<size_t> miniBucketIndexDist(0, min(NumMiniBuckets-1, posOfKeyToInsert));
         size_t randomMiniBucketIndex = miniBucketIndexDist(generator);
         size_t randomKeyIndex =  posOfKeyToInsert-randomMiniBucketIndex;
-        assert(temp.insert(randomMiniBucketIndex, randomKeyIndex) == true);
+        std::optional<uint64_t> retval = temp.insert(randomMiniBucketIndex, randomKeyIndex);
+        assert(retval.has_value());
     }
     cout << "pass" << endl;
 
@@ -119,7 +127,7 @@ void testBucket(mt19937& generator) {
         for(size_t j{0}; j < miniBucketIndex; j++) {
             keyIndex += sizeEachMiniBucket[j];
         }
-        assert(temp.insert(miniBucketIndex, keyIndex) == false);
+        assert(!temp.insert(miniBucketIndex, keyIndex).has_value());
         sizeEachMiniBucket[miniBucketIndex]++;
     }
 
@@ -137,6 +145,32 @@ void testBucket(mt19937& generator) {
         }
     }
     cout << "pass" << endl;
+
+    cout << "Testing if overflow values are correct: ";
+    temp = FakeBucket<NumKeys, NumMiniBuckets>(generator);
+    multiset<uint64_t> miniBucketIndices{};
+    for(size_t i{1}; i <= NumKeys; i++) {
+        uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
+        size_t randomMiniBucketIndex = miniBucketIndexDist(generator);
+        miniBucketIndices.insert(randomMiniBucketIndex);
+        // cout << "Inserting " << randomKeyIndex << " " << randomMiniBucketIndex << endl;
+        pair<size_t, size_t> bounds = temp.query(randomMiniBucketIndex);
+        assert(!temp.insert(randomMiniBucketIndex, bounds.first).has_value());
+    }
+
+    for(size_t i{1}; i <= NumKeys; i++) {
+        uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
+        size_t randomMiniBucketIndex = miniBucketIndexDist(generator);
+        miniBucketIndices.insert(randomMiniBucketIndex);
+        pair<size_t, size_t> bounds = temp.query(randomMiniBucketIndex);
+        std::optional<uint64_t> retval = temp.insert(randomMiniBucketIndex, bounds.first);
+        assert(retval.has_value());
+        // cout << *retval << " " << *miniBucketIndices.rbegin() << endl;
+        assert(*retval == *miniBucketIndices.rbegin());
+        miniBucketIndices.erase(--miniBucketIndices.end());
+    }
+    cout << "pass" << endl;
+
     cout << endl;
 }
 
@@ -148,5 +182,6 @@ int main() {
         testBucket<51, 52>(generator);
         testBucket<25, 26>(generator);
         testBucket<75, 61>(generator);
+        testBucket<400, 3>(generator); //Just to hit extreme cases that I account for but aren't really all that necessary in the actual filter design lol
     }
 }
