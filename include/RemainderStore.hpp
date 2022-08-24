@@ -85,6 +85,89 @@ namespace DynamicPrefixFilter {
             return queryNonVectorized(remainder, bounds);
         }
     };
+
+
+    template<std::size_t NumRemainders, std::size_t Offset>
+    struct alignas(1) RemainderStore4Bit {
+        static constexpr std::size_t Size = (NumRemainders+1)/2;
+        std::array<std::uint8_t, Size> remainders;
+
+        __m512i* getNonOffsetBucketAddress() {
+            return reinterpret_cast<__m512i*>(reinterpret_cast<std::uint8_t*>(&remainders) - Offset);
+        }
+
+        //bitGroup = 0 if lower order, 1 if higher order
+        static std::uint_fast8_t get4Bits(std::uint_fast8_t byte, std::uint_fast8_t bitGroup) {
+            if constexpr (DEBUG) assert(bitGroup <= 1 && (byte & (0b1111 << (bitGroup*4))) >> (bitGroup*4) <16);
+            return (byte & (0b1111 << (bitGroup*4))) >> (bitGroup*4);
+        }
+
+        static void set4Bits(std::uint_fast8_t& byte, std::uint_fast8_t bitGroup, std::uint_fast8_t bits) {
+            if constexpr (DEBUG) assert(bitGroup <= 1 && bits < 16);
+            // std::cout << "Setting 4 bits: " << (int)byte << " " << (int)bitGroup << " " << (int)bits << " ";
+            byte = (byte & (0b1111 << ((1-bitGroup)*4))) + (bits << (bitGroup*4));
+            // std::cout << (int)byte << std::endl;
+        }
+
+        //returns the remainder that overflowed. This struct doesn't actually know if there was any overflow, so this might just be a random value.
+        std::uint_fast8_t insertNonVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+            std::uint_fast8_t overflow = remainder;
+            // std::cout << "Inserting: " << bounds.first << " " << bounds.second << " " << (int)overflow << std::endl;
+            for(size_t i{bounds.first}; i < bounds.second; i++) {
+                std::uint_fast8_t tmp = get4Bits(remainders[i/2], i%2);
+                set4Bits(remainders[i/2], i%2, std::min(overflow, tmp));
+                overflow = std::max(overflow, tmp);
+                // std::cout << (int)overflow << " ";
+            }
+            for(size_t i{bounds.second}; i < NumRemainders; i++) {
+                std::uint_fast8_t tmp = get4Bits(remainders[i/2], i%2);
+                set4Bits(remainders[i/2], i%2, overflow);
+                overflow = tmp;
+                // std::cout << (int)overflow << " ";
+            }
+            // std::cout << std::endl;
+            return overflow;
+        }
+
+        // Original q: Should this even be vectorized really? Cause that would be more consistent, but probably slower on average since maxPossible-minPossible should be p small? Then again already overhead of working with bytes
+        // Original plan was: Returns 0 if can definitely say this is not in the filter, 1 if definitely is, 2 if need to go to backyard
+        // Feels like def a good idea to vectorize now
+        std::uint64_t queryNonVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+            std::uint64_t retMask = 0;
+            // std::cout << "Querying " << remainder << std::endl;
+            for(size_t i{bounds.first}; i < bounds.second; i++) {
+                // std::cout << (int)get4Bits(remainders[i/2], i%2) << " ";
+                if(get4Bits(remainders[i/2], i%2) == remainder) {
+                    retMask |= 1ull << i;
+                }assert(remainder < 16);
+            }
+            // std::cout << std::endl;
+            return retMask;
+        }
+
+        //This is the query to see if we need to go to the backyard. Basically only run this if our mini filter says that there are keys in the mini bucket and the mini bucket is the last one to have keys.
+        bool queryOutOfBounds(std::uint_fast8_t remainder) {
+            return remainder > get4Bits(remainders[(NumRemainders-1)/2], (NumRemainders-1)%2);
+        }
+
+        //Todo: vectorize this
+        std::uint_fast8_t insert(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+            if constexpr (DEBUG) {
+                assert(remainder < 16); //make sure is actually within 4 bits
+                assert(bounds.second <= NumRemainders);
+            }
+            return insertNonVectorized(remainder, bounds);
+        }
+
+        // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
+        std::uint64_t query(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+            if constexpr (DEBUG) {
+                assert(remainder < 16);
+                assert(bounds.second <= NumRemainders);
+            }
+            return queryNonVectorized(remainder, bounds);
+        }
+    };
     
 }
 

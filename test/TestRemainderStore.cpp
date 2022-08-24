@@ -9,13 +9,13 @@
 using namespace std;
 using namespace DynamicPrefixFilter;
 
-template<size_t NumKeys>
+template<size_t NumKeys, template<std::size_t NumRemainders, std::size_t Offset> class StoreType>
 struct alignas(64) FakeBucket {
-    static constexpr size_t frontOffsetSize = (64-NumKeys)/2;
-    static constexpr size_t backOffsetSize = 64-NumKeys-frontOffsetSize;
+    static constexpr size_t frontOffsetSize = (64-StoreType<NumKeys, 0>::Size)/2;
+    static constexpr size_t backOffsetSize = 64-StoreType<NumKeys, 0>::Size-frontOffsetSize;
     
     std::array<uint8_t, frontOffsetSize> frontOffset;
-    RemainderStore8Bit<NumKeys, frontOffsetSize> remainderStore;
+    StoreType<NumKeys, frontOffsetSize> remainderStore;
     std::array<uint8_t, backOffsetSize> backOffset;
 
     void basicFunctionTestWrapper(std::function<void(void)> func) {
@@ -58,18 +58,18 @@ struct alignas(64) FakeBucket {
     }
 };
 
-template<size_t NumKeys, size_t NumMiniBuckets>
+template<size_t NumKeys, size_t NumMiniBuckets, template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
 void testBucket(mt19937& generator) {
     cout << "Testing with " << NumKeys << " keys." << endl;
 
-    FakeBucket<NumKeys> testBucket(generator);
+    FakeBucket<NumKeys, StoreType> testBucket(generator);
     array<size_t, NumMiniBuckets> sizeEachMiniBucket{};
     multiset<pair<size_t, uint_fast8_t>> remainders{};
     for(size_t i{0}; i < NumKeys*2; i++) {
         // cout << i << endl;
         uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
         size_t miniBucketIndex = miniBucketIndexDist(generator);
-        uniform_int_distribution<uint_fast8_t> remainderDist(0, 255);
+        uniform_int_distribution<uint_fast8_t> remainderDist(0, (1ull << StoreTypeRemainderSize)-1);
         uint_fast8_t remainder = remainderDist(generator);
         remainders.insert(make_pair(miniBucketIndex, remainder));
         size_t minBound = 0;
@@ -104,15 +104,23 @@ void testBucket(mt19937& generator) {
     }
 }
 
+template<template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
+void runTests(mt19937& generator) {
+    for(size_t i{0}; i < 100; i++) {
+        testBucket<15, 1, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<51, 52, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<25, 26, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<47, 61, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<60, 5, StoreType, StoreTypeRemainderSize>(generator);
+    }
+}
+
 int main() {
     random_device rd;
     mt19937 generator (rd());
 
-    for(size_t i{0}; i < 100; i++) {
-        testBucket<15, 1>(generator);
-        testBucket<51, 52>(generator);
-        testBucket<25, 26>(generator);
-        testBucket<47, 61>(generator);
-        testBucket<60, 5>(generator);
-    }
+    cout << "Testing 8 bit" << endl;
+    runTests<RemainderStore8Bit, 8>(generator);
+    cout << "Testing 4 bit" << endl;
+    runTests<RemainderStore4Bit, 4>(generator);
 }
