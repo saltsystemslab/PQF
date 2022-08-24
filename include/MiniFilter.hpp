@@ -25,6 +25,7 @@ namespace DynamicPrefixFilter {
     struct alignas(1) MiniFilter {
         static constexpr std::size_t NumBits = NumKeys+NumMiniBuckets;
         static constexpr std::size_t NumBytes = (NumKeys+NumMiniBuckets+7)/8;
+        static constexpr std::size_t Size = NumBytes; // Again some naming consistency problems to address later
         static constexpr std::size_t NumUllongs = (NumBytes+7)/8;
         static constexpr std::uint64_t lastSegmentMask = (NumBits%64 == 0) ? -1ull : (1ull << (NumBits%64))-1ull;
         std::array<uint8_t, NumBytes> filterBytes;
@@ -197,14 +198,14 @@ namespace DynamicPrefixFilter {
             // std::cout << std::endl;
             std::array<uint8_t, NumBytes> expectedFilterBytes;
             bool expectedOverflow = 0;
-            bool startedShifting = false;
+            // bool startedShifting = false;
             int64_t bitsNeedToSet = miniBucketIndex+keyIndex;
             int64_t bitsLeftInFilter = NumBits;
             size_t lastZeroPos = -1;
             for(std::size_t i{0}; i < NumBytes; i++) {
                 uint8_t byte = filterBytes[i];
                 uint8_t shiftedByte = 0;
-                for(size_t j{0}; j < 8 && j < bitsLeftInFilter; j++, byte >>= 1, bitsNeedToSet--) {
+                for(int64_t j{0}; j < 8 && j < bitsLeftInFilter; j++, byte >>= 1, bitsNeedToSet--) {
                     if(bitsNeedToSet <= 0) {
                         shiftedByte += ((uint8_t)expectedOverflow) << j;
                         if(!expectedOverflow) {
@@ -214,7 +215,7 @@ namespace DynamicPrefixFilter {
                     }
                     else {
                         shiftedByte += (byte & 1) << j;
-                        if(byte & 1 == 0) {
+                        if((byte & 1) == 0) {
                             lastZeroPos = i*8 + j;
                         }
                     }

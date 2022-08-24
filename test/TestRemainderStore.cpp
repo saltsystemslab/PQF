@@ -59,7 +59,7 @@ struct alignas(64) FakeBucket {
 };
 
 template<size_t NumKeys, size_t NumMiniBuckets>
-void testBucket(mt19937 generator) {
+void testBucket(mt19937& generator) {
     cout << "Testing with " << NumKeys << " keys." << endl;
 
     FakeBucket<NumKeys> testBucket(generator);

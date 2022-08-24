@@ -32,7 +32,6 @@ struct alignas(1) FakeBucket {
         for(uint8_t& byte: extraBytes) {
             byte = uint8_dist(generator);
         }
-        array<uint8_t, NumExtraBytes> extraBytesCopy = extraBytes;
 
         basicFunctionTestWrapper([&] () -> void {
             filterBytes = MiniFilter<NumKeys, NumMiniBuckets>();
@@ -58,7 +57,7 @@ struct alignas(1) FakeBucket {
 };
 
 template<size_t NumKeys, size_t NumMiniBuckets>
-void testBucket(mt19937 generator) {
+void testBucket(mt19937& generator) {
     cout << "Testing with " << NumKeys << " keys and " << NumMiniBuckets << " mini buckets." << endl;
     FakeBucket<NumKeys, NumMiniBuckets> temp(generator);
     // uniform_int_distribution<uint8_t> miniBucketDist(0, NumMiniBuckets);
@@ -145,7 +144,9 @@ int main() {
     random_device rd;
     mt19937 generator (rd());
 
-    testBucket<51, 52>(generator);
-    testBucket<25, 26>(generator);
-    testBucket<75, 61>(generator);
+    for(size_t i{0}; i < 100; i++) {
+        testBucket<51, 52>(generator);
+        testBucket<25, 26>(generator);
+        testBucket<75, 61>(generator);
+    }
 }
