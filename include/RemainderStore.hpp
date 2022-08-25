@@ -6,6 +6,7 @@
 #include <utility>
 #include <algorithm>
 #include <immintrin.h>
+#include <cassert>
 #include "TestUtility.hpp"
 
 //Note: probably change the type of bounds to an in house type where its *explicitly* something like startPos and endPos names or something. Not really necessary but might be a bit nice
@@ -26,16 +27,52 @@ namespace DynamicPrefixFilter {
             return reinterpret_cast<__m512i*>(reinterpret_cast<std::uint8_t*>(&remainders) - Offset);
         }
 
+        //This solution of overflowLocToStore to make 12bit remainder store work is pretty ugly and wouldn't directly work in AVX512, so try to come up with something better!
         //returns the remainder that overflowed. This struct doesn't actually know if there was any overflow, so this might just be a random value.
-        std::uint_fast8_t insertNonVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+        std::uint_fast8_t insertNonVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds, std::pair<size_t, size_t>* insertLoc = NULL) {
             std::uint_fast8_t overflow = remainder;
             // std::cout << (int)overflow << " ";
+            if(insertLoc != NULL) *insertLoc = std::make_pair(-1ull, -1ull);
             for(size_t i{bounds.first}; i < bounds.second; i++) {
                 std::uint_fast8_t tmp = remainders[i];
-                remainders[i] = std::min(overflow, tmp);
-                overflow = std::max(overflow, tmp);
+                if(insertLoc == NULL) {
+                    remainders[i] = std::min(overflow, tmp);
+                    overflow = std::max(overflow, tmp);
+                }
+                else {
+                    if(overflow <= tmp) {
+                        if(insertLoc->first == -1ull) {
+                            insertLoc->first = i;
+                            insertLoc->second = i;
+                            // *insertLoc.second = i;
+                            //made the awful thing even more awful but whatever
+                            // for(; *insertLoc.second < NumRemainders && *insertLoc.second <= bounds.second && remainders; insertLoc->second++);
+                        }
+                        else if (overflow == remainder) {
+                            insertLoc->second = i;
+                        }
+                        remainders[i] = overflow;
+                        overflow = tmp;
+                    }
+                    else {
+                        remainders[i] = tmp;
+                    }
+                }
                 // std::cout << (int)overflow << " ";
             }
+            if(insertLoc != NULL) {
+                if(insertLoc->first == -1ull) {
+                    insertLoc->first = bounds.second;
+                    insertLoc->second = bounds.second;
+                    // *insertLoc.second = i;
+                    //most awful thing but whatever
+                    // for(; *insertLoc.second < NumRemainders && *insertLoc.second <= bounds.second && remainders; insertLoc->second++);
+                }
+                else if (overflow == remainder) {
+                    insertLoc->second = bounds.second;
+                }
+            }
+
             for(size_t i{bounds.second}; i < NumRemainders; i++) {
                 std::uint_fast8_t tmp = remainders[i];
                 remainders[i] = overflow;
@@ -70,11 +107,11 @@ namespace DynamicPrefixFilter {
         }
 
         //Todo: vectorize this
-        std::uint_fast8_t insert(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+        std::uint_fast8_t insert(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds, std::pair<size_t, size_t>* insertLoc = NULL) {
             if constexpr (DEBUG) {
                 assert(bounds.second <= NumRemainders);
             }
-            return insertNonVectorized(remainder, bounds);
+            return insertNonVectorized(remainder, bounds, insertLoc);
         }
 
         // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
@@ -166,6 +203,43 @@ namespace DynamicPrefixFilter {
                 assert(bounds.second <= NumRemainders);
             }
             return queryNonVectorized(remainder, bounds);
+        }
+    };
+
+    //Oooooops I forgot about ordering so making a 12bit store out of 4 and 8 bit will be hard :(
+    template<std::size_t NumRemainders, std::size_t Offset>
+    struct alignas(1) RemainderStore12Bit {
+        using Store8BitType = RemainderStore8Bit<NumRemainders, Offset>;
+        static constexpr std::size_t Size8BitPart = Store8BitType::Size;
+        using Store4BitType = RemainderStore4Bit<NumRemainders, Offset+Size8BitPart>;
+        static constexpr std::size_t Size4BitPart = Store4BitType::Size;
+        static constexpr std::size_t Size = Size8BitPart+Size4BitPart;
+
+        Store8BitType store8BitPart;
+        Store4BitType store4BitPart;
+
+        std::uint_fast16_t insert(std::uint_fast16_t remainder, std::pair<size_t, size_t> bounds) {
+            uint_fast8_t remainder8BitPart = remainder >> 4;
+            uint_fast8_t remainder4BitPart = remainder & 15;
+
+            std::pair<std::size_t, std::size_t> insertLoc8BitPart;
+            uint_fast16_t overflow = store8BitPart.insert(remainder8BitPart, bounds, &insertLoc8BitPart) << 4ull;
+            // std::cout << "Inserted " << remainder << " to " << insertLoc8BitPart.first << ", " << insertLoc8BitPart.second << "; " << (int) remainder8BitPart << " " << (int) remainder4BitPart << ", " << bounds.first << " " << bounds.second << std::endl;
+            overflow |= store4BitPart.insert(remainder4BitPart, insertLoc8BitPart);
+            // if constexpr (DEBUG)
+            //     assert(insertLoc8BitPart == NumRemainders || (query(remainder, std::make_pair(bounds.first, std::min(bounds.second+1, NumRemainders))) & (1ull << insertLoc8BitPart)) != 0);
+            return overflow;
+        }
+
+        std::uint64_t query(std::uint_fast16_t remainder, std::pair<size_t, size_t> bounds) {
+            uint_fast8_t remainder8BitPart = remainder >> 4;
+            uint_fast8_t remainder4BitPart = remainder & 15;
+
+            // std::cout << "Querying " << remainder << " " << (int) remainder8BitPart << " " << (int) remainder4BitPart << std::endl;
+            // printBinaryUInt64(store8BitPart.query(remainder8BitPart, bounds), true);
+            // printBinaryUInt64(store4BitPart.query(remainder4BitPart, bounds), true);
+
+            return store8BitPart.query(remainder8BitPart, bounds) & store4BitPart.query(remainder4BitPart, bounds);
         }
     };
     

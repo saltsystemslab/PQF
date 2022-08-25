@@ -10,13 +10,13 @@ namespace DynamicPrefixFilter {
     //Just use the global settings in Configuration.hpp for NumMiniBuckets?
     template<std::size_t NumMiniBuckets>
     struct FrontyardQRContainer {
-        std::size_t quotient;
+        // std::size_t quotient;
         std::size_t bucketIndex;
         std::size_t miniBucketIndex;
         std::uint64_t remainder;
 
         //Here hash is assumed to already be in the range supported
-        FrontyardQRContainer(std::size_t quotient, std::uint64_t remainder): quotient{quotient}, bucketIndex{quotient/NumMiniBuckets}, miniBucketIndex{quotient%NumMiniBuckets}, remainder{remainder} {
+        FrontyardQRContainer(std::size_t quotient, std::uint64_t remainder): /*quotient{quotient},*/ bucketIndex{quotient/NumMiniBuckets}, miniBucketIndex{quotient%NumMiniBuckets}, remainder{remainder} {
         }
     };
 
@@ -25,7 +25,7 @@ namespace DynamicPrefixFilter {
     template<std::size_t NumMiniBuckets, bool HashNum, std::size_t RemainderBits = 8, std::size_t ConsolidationBits = 4>
     struct BackyardQRContainer {
         static constexpr std::size_t ConsolidationFactor = 1ull << ConsolidationBits;
-        std::size_t quotient;
+        // std::size_t quotient; // Do we really need to store this?
         std::size_t realRemainder; //We imbue the remainder with the hash to make a bigger remainder, so this is just to store what was originally the remainder before the addition. Not used but just to be there
         std::size_t bucketIndex;
         std::size_t miniBucketIndex;
@@ -44,12 +44,12 @@ namespace DynamicPrefixFilter {
             }
         }
 
-        BackyardQRContainer(std::size_t quotient, std::uint64_t remainder): quotient{quotient}, realRemainder{remainder}, miniBucketIndex{quotient%NumMiniBuckets}, remainder(remainder) {
+        BackyardQRContainer(std::size_t quotient, std::uint64_t remainder): /*quotient{quotient},*/ realRemainder{remainder}, miniBucketIndex{quotient%NumMiniBuckets}, remainder(remainder) {
             std::uint64_t frontyardBucketIndex = quotient/NumMiniBuckets;
             finishInit(frontyardBucketIndex);
         }
 
-        BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR): quotient{frontQR.quotient}, realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
+        BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
             finishInit(frontQR.bucketIndex);
         }
     };

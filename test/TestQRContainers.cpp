@@ -38,34 +38,34 @@ void testQRContainers (mt19937& generator){
     FrontyardQRType fqr(quotient, remainder);
     assert(fqr.bucketIndex == frontBucketIndex);
     assert(fqr.miniBucketIndex == miniBucketIndex);
-    assert(fqr.quotient == quotient); //these here seem overly ridiculous but whatever
+    // assert(fqr.quotient == quotient); //these here seem overly ridiculous but whatever
     assert(fqr.remainder == remainder);
 
     BackyardQRType1 bqr1(quotient, remainder);
     assert(bqr1.bucketIndex == firstBackBucketIndex);
     assert(bqr1.miniBucketIndex == miniBucketIndex);
-    assert(bqr1.quotient == quotient);
+    // assert(bqr1.quotient == quotient);
     assert(bqr1.realRemainder == remainder);
     assert(bqr1.remainder == firstBackBucketRemainder);
 
     bqr1 = BackyardQRType1(fqr);
     assert(bqr1.bucketIndex == firstBackBucketIndex);
     assert(bqr1.miniBucketIndex == miniBucketIndex);
-    assert(bqr1.quotient == quotient);
+    // assert(bqr1.quotient == quotient);
     assert(bqr1.realRemainder == remainder);
     assert(bqr1.remainder == firstBackBucketRemainder);
 
     BackyardQRType2 bqr2(quotient, remainder);
     assert(bqr2.bucketIndex == secondBackBucketIndex);
     assert(bqr2.miniBucketIndex == miniBucketIndex);
-    assert(bqr2.quotient == quotient);
+    // assert(bqr2.quotient == quotient);
     assert(bqr2.realRemainder == remainder);
     assert(bqr2.remainder == secondBackBucketRemainder);
 
     bqr2 = BackyardQRType2(fqr);
     assert(bqr2.bucketIndex == secondBackBucketIndex);
     assert(bqr2.miniBucketIndex == miniBucketIndex);
-    assert(bqr2.quotient == quotient);
+    // assert(bqr2.quotient == quotient);
     assert(bqr2.realRemainder == remainder);
     assert(bqr2.remainder == secondBackBucketRemainder);
 

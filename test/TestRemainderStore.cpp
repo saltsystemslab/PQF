@@ -38,19 +38,19 @@ struct alignas(64) FakeBucket {
         }
     }
 
-    void insert(uint_fast8_t remainder, pair<size_t, size_t> bounds, optional<uint_fast8_t> expectedOverflow) {
+    void insert(uint64_t remainder, pair<size_t, size_t> bounds, optional<uint64_t> expectedOverflow) {
         // cout << "Inserting " << (int)remainder << " into [" << bounds.first << ", " << bounds.second << ")" << endl;
         basicFunctionTestWrapper([&] () -> void {
-            uint_fast8_t overflow = remainderStore.insert(remainder, bounds);
+            uint64_t overflow = remainderStore.insert(remainder, bounds);
             // cout << ((int)overflow) << " " << ((int)(*expectedOverflow)) << endl;
             assert(!expectedOverflow.has_value() || overflow == *expectedOverflow);
         });
     }
 
-    void checkQuery(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds, std::uint64_t expectedMask) {
+    void checkQuery(std::uint64_t remainder, std::pair<size_t, size_t> bounds, std::uint64_t expectedMask) {
         basicFunctionTestWrapper([&] () -> void {
-            // cout << "Querying " << (int)remainder << " in [" << bounds.first << ", " << bounds.second << ")" << endl;
             uint64_t mask = remainderStore.query(remainder, bounds);
+            // cout << "Querying " << (int)remainder << " in [" << bounds.first << ", " << bounds.second << ")" << endl;
             // printBinaryUInt64(mask, true);
             // printBinaryUInt64(expectedMask, true);
             assert(mask == expectedMask);
@@ -64,13 +64,13 @@ void testBucket(mt19937& generator) {
 
     FakeBucket<NumKeys, StoreType> testBucket(generator);
     array<size_t, NumMiniBuckets> sizeEachMiniBucket{};
-    multiset<pair<size_t, uint_fast8_t>> remainders{};
+    multiset<pair<size_t, uint64_t>> remainders{};
     for(size_t i{0}; i < NumKeys*2; i++) {
-        // cout << i << endl;
+        // cout << "i is " << i << endl;
         uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
         size_t miniBucketIndex = miniBucketIndexDist(generator);
-        uniform_int_distribution<uint_fast8_t> remainderDist(0, (1ull << StoreTypeRemainderSize)-1);
-        uint_fast8_t remainder = remainderDist(generator);
+        uniform_int_distribution<uint64_t> remainderDist(0, (1ull << StoreTypeRemainderSize)-1);
+        uint64_t remainder = remainderDist(generator);
         remainders.insert(make_pair(miniBucketIndex, remainder));
         size_t minBound = 0;
         for(size_t j{0}; j < miniBucketIndex; j++) {
@@ -78,7 +78,7 @@ void testBucket(mt19937& generator) {
         }
         size_t maxBound = min(minBound + sizeEachMiniBucket[miniBucketIndex], NumKeys);
         if(i >= NumKeys) {
-            pair<size_t, uint_fast8_t> expectedOverflow = *(remainders.rbegin());
+            pair<size_t, uint64_t> expectedOverflow = *(remainders.rbegin());
             testBucket.insert(remainder, make_pair(minBound, maxBound), {expectedOverflow.second});
             remainders.erase(--remainders.end());
         }
@@ -108,6 +108,7 @@ template<template<std::size_t NumRemainders, std::size_t Offset> class StoreType
 void runTests(mt19937& generator) {
     for(size_t i{0}; i < 100; i++) {
         testBucket<15, 1, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<35, 52, StoreType, StoreTypeRemainderSize>(generator);
         testBucket<51, 52, StoreType, StoreTypeRemainderSize>(generator);
         testBucket<25, 26, StoreType, StoreTypeRemainderSize>(generator);
         testBucket<47, 61, StoreType, StoreTypeRemainderSize>(generator);
@@ -123,4 +124,11 @@ int main() {
     runTests<RemainderStore8Bit, 8>(generator);
     cout << "Testing 4 bit" << endl;
     runTests<RemainderStore4Bit, 4>(generator);
+    cout << "Testing 12 bit (composite of 4 & 8)" << endl;
+    for(size_t i{0}; i < 100; i++) {
+        testBucket<35, 52, RemainderStore12Bit, 12>(generator);
+        testBucket<15, 1, RemainderStore12Bit, 12>(generator);
+        testBucket<25, 26, RemainderStore12Bit, 12>(generator);
+        testBucket<37, 26, RemainderStore12Bit, 12>(generator);
+    }
 }
