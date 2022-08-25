@@ -40,33 +40,36 @@ void testQRContainers (mt19937& generator){
     // assert(fqr.quotient == quotient); //these here seem overly ridiculous but whatever
     assert(fqr.remainder == remainder);
 
-    BackyardQRType bqr1(quotient, remainder, 0);
+    BackyardQRType bqr1(quotient, remainder, false);
     assert(bqr1.bucketIndex == firstBackBucketIndex);
     assert(bqr1.miniBucketIndex == miniBucketIndex);
     // assert(bqr1.quotient == quotient);
     assert(bqr1.realRemainder == remainder);
     assert(bqr1.remainder == firstBackBucketRemainder);
 
-    bqr1 = BackyardQRType(fqr, 0);
+    bqr1 = BackyardQRType(fqr, false);
     assert(bqr1.bucketIndex == firstBackBucketIndex);
     assert(bqr1.miniBucketIndex == miniBucketIndex);
     // assert(bqr1.quotient == quotient);
     assert(bqr1.realRemainder == remainder);
     assert(bqr1.remainder == firstBackBucketRemainder);
 
-    BackyardQRType bqr2(quotient, remainder, 1);
+    BackyardQRType bqr2(quotient, remainder, true);
     assert(bqr2.bucketIndex == secondBackBucketIndex);
     assert(bqr2.miniBucketIndex == miniBucketIndex);
     // assert(bqr2.quotient == quotient);
+    // cout << bqr2.remainder << " " << (secondBackBucketRemainder + (1ull << RemainderBits) * 8) << endl;
     assert(bqr2.realRemainder == remainder);
-    assert(bqr2.remainder == secondBackBucketRemainder);
+    assert(bqr2.remainder == secondBackBucketRemainder + (1ull << RemainderBits) * 8);
+    assert(bqr2.remainder < 4096);
 
-    bqr2 = BackyardQRType(fqr, 1);
+    bqr2 = BackyardQRType(fqr, true);
     assert(bqr2.bucketIndex == secondBackBucketIndex);
     assert(bqr2.miniBucketIndex == miniBucketIndex);
     // assert(bqr2.quotient == quotient);
     assert(bqr2.realRemainder == remainder);
-    assert(bqr2.remainder == secondBackBucketRemainder);
+    assert(bqr2.remainder == secondBackBucketRemainder + (1ull << RemainderBits) * 8);
+    assert(bqr2.remainder < 4096);
 
 }
 
@@ -75,11 +78,11 @@ int main() {
     mt19937 generator (rd());
 
     for(size_t i{0}; i < 1000; i++) {
-        testQRContainers<52, 0, 14>(generator);
-        testQRContainers<52, 1, 14>(generator);
-        testQRContainers<26, 0, 14>(generator);
-        testQRContainers<26, 1, 16>(generator);
-        testQRContainers<47, 0, 16>(generator);
-        testQRContainers<47, 1, 16>(generator);
+        testQRContainers<52, 0, 7>(generator);
+        testQRContainers<52, 1, 7>(generator);
+        testQRContainers<26, 0, 7>(generator);
+        testQRContainers<26, 1, 8>(generator);
+        testQRContainers<47, 0, 8>(generator);
+        testQRContainers<47, 1, 8>(generator);
     }
 }
