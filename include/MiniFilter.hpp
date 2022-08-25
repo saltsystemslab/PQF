@@ -22,6 +22,7 @@ namespace DynamicPrefixFilter {
     //You have to put the minifilter at the beginning of the bucket! Otherwise it may mess stuff up, since it does something admittedly kinda sus
     //Relies on little endian ordering
     //Definitely not fully optimized, esp given the fact that I'm being generic and allowing any mini filter size rather than basically mini filter has to fit in 2 words (ullongs)
+    //TODO: Fix the organization of this (ex make some stuff public, some stuff private etc), and make an interface (this goes for all the things written so far).
     template<std::size_t NumKeys, std::size_t NumMiniBuckets>
     struct alignas(1) MiniFilter {
         static constexpr std::size_t NumBits = NumKeys+NumMiniBuckets;
@@ -186,6 +187,16 @@ namespace DynamicPrefixFilter {
             }
             return {};
         }
+
+        //We implement this by counting where the last bucket cutoff is, and then the number of keys is just that minus the number of buckets. So p similar to fixOverflow()
+        std::size_t countKeys() {
+            uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
+            uint64_t segment = *fastCastFilter & lastSegmentMask;
+            size_t offset = (NumUllongs-1) * 64;
+            for(; segment == 0; fastCastFilter--, segment = *fastCastFilter, offset -= 64);
+            return (64 - _lzcnt_u64(segment)) + offset - NumMiniBuckets;
+        }
+
 
         //Functions for testing below
         static void printMiniFilter(std::array<uint8_t, NumBytes> filterBytes, bool withExtraBytes = false) {

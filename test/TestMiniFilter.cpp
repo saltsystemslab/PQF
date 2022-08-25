@@ -59,6 +59,12 @@ struct alignas(1) FakeBucket {
     pair<size_t, size_t> query(size_t miniBucketIndex) {
         return filterBytes.queryMiniBucketBounds(miniBucketIndex);
     }
+
+    void checkCount(size_t expectedCount) {
+        basicFunctionTestWrapper([&] () -> void {
+            assert(filterBytes.countKeys() == expectedCount);
+        });
+    }
 };
 
 //TODO: Just changed what MiniFilter insert returns, so verify it returns the correct mini bucket of the thing that overflowed (we know the key index is just the highest one).
@@ -101,6 +107,7 @@ void testBucket(mt19937& generator) {
         size_t randomKeyIndex =  posOfKeyToInsert-randomMiniBucketIndex;
         // cout << "Inserting " << randomKeyIndex << " " << randomMiniBucketIndex << endl;
         assert(!temp.insert(randomMiniBucketIndex, randomKeyIndex).has_value());
+        temp.checkCount(i);
     }
     cout << "pass" << endl;
     
@@ -113,6 +120,7 @@ void testBucket(mt19937& generator) {
         size_t randomKeyIndex =  posOfKeyToInsert-randomMiniBucketIndex;
         std::optional<uint64_t> retval = temp.insert(randomMiniBucketIndex, randomKeyIndex);
         assert(retval.has_value());
+        temp.checkCount(NumKeys);
     }
     cout << "pass" << endl;
 
@@ -128,6 +136,7 @@ void testBucket(mt19937& generator) {
             keyIndex += sizeEachMiniBucket[j];
         }
         assert(!temp.insert(miniBucketIndex, keyIndex).has_value());
+        temp.checkCount(i+1);
         sizeEachMiniBucket[miniBucketIndex]++;
     }
 
