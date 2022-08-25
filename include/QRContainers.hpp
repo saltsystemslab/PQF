@@ -34,7 +34,7 @@ namespace DynamicPrefixFilter {
         std::size_t miniBucketIndex;
         std::uint64_t remainder;
 
-        void finishInit(std::uint64_t frontyardBucketIndex, bool hashNum) {
+        void finishInit(std::uint64_t frontyardBucketIndex, bool hashNum, std::uint64_t rangeBuckets) {
             if (hashNum) {
                 remainder += (frontyardBucketIndex % ConsolidationFactor) << RemainderBits; //Division and remainder *should* be optimized to bit shift, but maybe just do that manually in the future to be sure
                 bucketIndex = frontyardBucketIndex / ConsolidationFactor;
@@ -45,18 +45,18 @@ namespace DynamicPrefixFilter {
             else {
                 std::uint64_t fbiMinusLowBits = frontyardBucketIndex / ConsolidationFactor;
                 std::uint64_t lowBits = frontyardBucketIndex % ConsolidationFactor;
-                bucketIndex = (fbiMinusLowBits/ConsolidationFactor) * ConsolidationFactor + lowBits;
+                bucketIndex = fbiMinusLowBits/ConsolidationFactor + lowBits*(rangeBuckets/ConsolidationFactor/ConsolidationFactor);
                 remainder += (fbiMinusLowBits % ConsolidationFactor) << RemainderBits;
             }
         }
 
-        BackyardQRContainer(std::size_t quotient, std::uint64_t remainder, bool hashNum): /*quotient{quotient},*/ realRemainder{remainder}, miniBucketIndex{quotient%NumMiniBuckets}, remainder(remainder) {
+        BackyardQRContainer(std::size_t quotient, std::uint64_t remainder, bool hashNum, std::uint64_t rangeBuckets): /*quotient{quotient},*/ realRemainder{remainder}, miniBucketIndex{quotient%NumMiniBuckets}, remainder(remainder) {
             std::uint64_t frontyardBucketIndex = quotient/NumMiniBuckets;
-            finishInit(frontyardBucketIndex, hashNum);
+            finishInit(frontyardBucketIndex, hashNum, rangeBuckets);
         }
 
-        BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
-            finishInit(frontQR.bucketIndex, hashNum);
+        BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t rangeBuckets): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
+            finishInit(frontQR.bucketIndex, hashNum, rangeBuckets);
         }
     };
 
