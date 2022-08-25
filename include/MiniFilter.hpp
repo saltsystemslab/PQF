@@ -162,10 +162,12 @@ namespace DynamicPrefixFilter {
                 return NumMiniBuckets-(skipMiniBuckets - 64 + offsetMiniBuckets)-1;
             }
             fastCastFilter--;
-            assert(fastCastFilter >= reinterpret_cast<uint64_t*> (&filterBytes));
-            uint64_t segmentInverse = ~(*fastCastFilter);
-            for(; segmentInverse == 0; offsetMiniBuckets += 64, fastCastFilter--) {
+            if constexpr (DEBUG)
                 assert(fastCastFilter >= reinterpret_cast<uint64_t*> (&filterBytes));
+            uint64_t segmentInverse = ~(*fastCastFilter); //This gives a warning in -O2 cause it may be out of bounds even though I assert it never happens!
+            for(; segmentInverse == 0; offsetMiniBuckets += 64, fastCastFilter--) {
+                if constexpr (DEBUG)
+                    assert(fastCastFilter >= reinterpret_cast<uint64_t*> (&filterBytes));
                 segmentInverse = ~(*fastCastFilter);
             }
             // *fastCastFilter = (*fastCastFilter) | _pdep_u64(1, segmentInverse);
