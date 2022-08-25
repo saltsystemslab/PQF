@@ -42,6 +42,10 @@ namespace DynamicPrefixFilter {
                 return std::pair<bool, bool>(false, bounds.second == NumKeys && (bounds.first == NumKeys || remainderStore.queryOutOfBounds(qr.remainder)));
             }
         }
+
+        std::size_t countKeys() {
+            return miniFilter.countKeys();
+        }
     };
 }
 
