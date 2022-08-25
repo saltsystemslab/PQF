@@ -56,6 +56,12 @@ struct alignas(64) FakeBucket {
             assert(mask == expectedMask);
         });
     }
+
+    void checkQueryOutOfBounds(std::uint64_t remainder, bool expected) {
+        basicFunctionTestWrapper([&] () -> void {
+            assert(expected == remainderStore.queryOutOfBounds(remainder));
+        });
+    }
 };
 
 template<size_t NumKeys, size_t NumMiniBuckets, template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
@@ -67,11 +73,14 @@ void testBucket(mt19937& generator) {
     multiset<pair<size_t, uint64_t>> remainders{};
     for(size_t i{0}; i < NumKeys*2; i++) {
         // cout << "i is " << i << endl;
+        //Generate random data
         uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
         size_t miniBucketIndex = miniBucketIndexDist(generator);
         uniform_int_distribution<uint64_t> remainderDist(0, (1ull << StoreTypeRemainderSize)-1);
         uint64_t remainder = remainderDist(generator);
         remainders.insert(make_pair(miniBucketIndex, remainder));
+
+        //Test insertion
         size_t minBound = 0;
         for(size_t j{0}; j < miniBucketIndex; j++) {
             minBound += sizeEachMiniBucket[j];
@@ -87,6 +96,7 @@ void testBucket(mt19937& generator) {
         }
         sizeEachMiniBucket[miniBucketIndex]++;
 
+        //Test queries
         minBound = 0;
         auto it = remainders.begin();
         uint64_t shift = 0;
@@ -100,6 +110,13 @@ void testBucket(mt19937& generator) {
                 expectedMask = 0;
             }
             minBound += size;
+        }
+
+        //Test query out of bounds.
+        if(shift == NumKeys) {
+            uint64_t overflowRemainder = remainderDist(generator);
+            // cout << i << " " << prev(it)->second << " " << overflowRemainder << " " << ((prev(it)->second)>>4) << " " << (overflowRemainder >> 4) << endl;
+            testBucket.checkQueryOutOfBounds(overflowRemainder, overflowRemainder > prev(it)->second);
         }
     }
 }

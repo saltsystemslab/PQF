@@ -103,7 +103,13 @@ namespace DynamicPrefixFilter {
 
         //This is the query to see if we need to go to the backyard. Basically only run this if our mini filter says that there are keys in the mini bucket and the mini bucket is the last one to have keys.
         bool queryOutOfBounds(std::uint_fast8_t remainder) {
+            // std::cout << (int)remainder << " " << (int)remainders[NumRemainders-1] << std::endl;
             return remainder > remainders[NumRemainders-1];
+        }
+
+        //A second very ugly solution to the 12 bit remainder problem.
+        bool queryMightBeOutOfBounds(std::uint_fast8_t remainder) {
+            return remainder == remainders[NumRemainders-1];
         }
 
         //Todo: vectorize this
@@ -218,7 +224,19 @@ namespace DynamicPrefixFilter {
         Store8BitType store8BitPart;
         Store4BitType store4BitPart;
 
+        bool queryOutOfBounds(std::uint_fast16_t remainder) {
+            uint_fast8_t remainder8BitPart = remainder >> 4;
+            uint_fast8_t remainder4BitPart = remainder & 15;
+            
+            return store8BitPart.queryOutOfBounds(remainder8BitPart) || (store8BitPart.queryMightBeOutOfBounds(remainder8BitPart) && store4BitPart.queryOutOfBounds(remainder4BitPart));
+        }
+
         std::uint_fast16_t insert(std::uint_fast16_t remainder, std::pair<size_t, size_t> bounds) {
+            if constexpr (DEBUG) {
+                assert(remainder <= 4095);
+                assert(bounds.second <= NumRemainders);
+            }
+
             uint_fast8_t remainder8BitPart = remainder >> 4;
             uint_fast8_t remainder4BitPart = remainder & 15;
 
@@ -232,6 +250,11 @@ namespace DynamicPrefixFilter {
         }
 
         std::uint64_t query(std::uint_fast16_t remainder, std::pair<size_t, size_t> bounds) {
+            if constexpr (DEBUG) {
+                assert(remainder <= 4095);
+                assert(bounds.second <= NumRemainders);
+            }
+
             uint_fast8_t remainder8BitPart = remainder >> 4;
             uint_fast8_t remainder4BitPart = remainder & 15;
 
