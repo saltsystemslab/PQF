@@ -27,7 +27,7 @@ void testQRContainers (mt19937& generator){
     uniform_int_distribution<size_t> remainderDist(0, (1ull << RemainderBits)-1);
     size_t remainder = remainderDist(generator);
 
-    size_t firstBackBucketIndex = backBucketIndex*cfactor + secondFrontyardBucket;
+    size_t firstBackBucketIndex = secondFrontyardBucket *(10000000000ull / cfactor /cfactor) + backBucketIndex;
     size_t firstBackBucketRemainder = (firstFrontyardBucket << RemainderBits) + remainder;
 
     size_t secondBackBucketIndex = backBucketIndex*cfactor + firstFrontyardBucket;
@@ -40,21 +40,21 @@ void testQRContainers (mt19937& generator){
     // assert(fqr.quotient == quotient); //these here seem overly ridiculous but whatever
     assert(fqr.remainder == remainder);
 
-    BackyardQRType bqr1(quotient, remainder, false);
+    BackyardQRType bqr1(quotient, remainder, false, 10000000000ull);
     assert(bqr1.bucketIndex == firstBackBucketIndex);
     assert(bqr1.miniBucketIndex == miniBucketIndex);
     // assert(bqr1.quotient == quotient);
     assert(bqr1.realRemainder == remainder);
     assert(bqr1.remainder == firstBackBucketRemainder);
 
-    bqr1 = BackyardQRType(fqr, false);
+    bqr1 = BackyardQRType(fqr, false, 10000000000ull);
     assert(bqr1.bucketIndex == firstBackBucketIndex);
     assert(bqr1.miniBucketIndex == miniBucketIndex);
     // assert(bqr1.quotient == quotient);
     assert(bqr1.realRemainder == remainder);
     assert(bqr1.remainder == firstBackBucketRemainder);
 
-    BackyardQRType bqr2(quotient, remainder, true);
+    BackyardQRType bqr2(quotient, remainder, true, 10000000000ull);
     assert(bqr2.bucketIndex == secondBackBucketIndex);
     assert(bqr2.miniBucketIndex == miniBucketIndex);
     // assert(bqr2.quotient == quotient);
@@ -63,7 +63,7 @@ void testQRContainers (mt19937& generator){
     assert(bqr2.remainder == secondBackBucketRemainder + (1ull << RemainderBits) * 8);
     assert(bqr2.remainder < 4096);
 
-    bqr2 = BackyardQRType(fqr, true);
+    bqr2 = BackyardQRType(fqr, true, 10000000000ull);
     assert(bqr2.bucketIndex == secondBackBucketIndex);
     assert(bqr2.miniBucketIndex == miniBucketIndex);
     // assert(bqr2.quotient == quotient);

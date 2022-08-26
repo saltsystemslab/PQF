@@ -18,6 +18,7 @@ namespace DynamicPrefixFilter {
         constexpr static std::size_t BackyardBucketSize = 64;
         constexpr static std::size_t BackyardBucketCapacity = 35;
         constexpr static std::size_t FrontyardToBackyardRatio = 7; //Max possible = 8
+        //seems like even 8 works, so switch to 8?
 
         private:
             using FrontyardQRContainerType = FrontyardQRContainer<BucketNumMiniBuckets>;
@@ -25,11 +26,11 @@ namespace DynamicPrefixFilter {
             using BackyardQRContainerType = BackyardQRContainer<BucketNumMiniBuckets, 8, FrontyardToBackyardRatio>;
             template<size_t NumMiniBuckets>
             using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, 8, FrontyardToBackyardRatio>;
-            using BackyardBucketType = Bucket<BackyardBucketCapacity, BucketNumMiniBuckets, RemainderStore8Bit, WrappedBackyardQRContainerType>;
+            using BackyardBucketType = Bucket<BackyardBucketCapacity, BucketNumMiniBuckets, RemainderStore12Bit, WrappedBackyardQRContainerType>;
             
             std::vector<FrontyardBucketType> frontyard;
             std::vector<BackyardBucketType> backyard;
-            std::vector<size_t> overflows;
+            // std::vector<size_t> overflows;
             std::size_t capacity;
             std::pair<std::uint64_t, std::uint64_t> getQRPairFromHash(std::uint64_t hash);
         
@@ -37,7 +38,7 @@ namespace DynamicPrefixFilter {
             DynamicPrefixFilter8Bit(std::size_t N);
             void insert(std::uint64_t hash);
             std::pair<bool, bool> query(std::uint64_t hash);
-            double getAverageOverflow();
+            // double getAverageOverflow();
 
     };
 }

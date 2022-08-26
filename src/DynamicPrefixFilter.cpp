@@ -7,7 +7,7 @@ using namespace DynamicPrefixFilter;
 DynamicPrefixFilter8Bit::DynamicPrefixFilter8Bit(std::size_t N): 
     frontyard((N+BucketNumMiniBuckets-1)/BucketNumMiniBuckets),
     backyard((frontyard.size()+FrontyardToBackyardRatio-1)/FrontyardToBackyardRatio),
-    overflows(frontyard.size()),
+    // overflows(frontyard.size()),
     capacity{N}
 {}
 
@@ -20,7 +20,7 @@ void DynamicPrefixFilter8Bit::insert(std::uint64_t hash) {
     FrontyardQRContainerType frontyardQR(qrPair.first, qrPair.second);
     std::optional<FrontyardQRContainerType> overflow = frontyard[frontyardQR.bucketIndex].insert(frontyardQR);
     if(overflow.has_value()) {
-        overflows[frontyardQR.bucketIndex]++;
+        // overflows[frontyardQR.bucketIndex]++;
         BackyardQRContainerType firstBackyardQR(*overflow, 0, frontyard.size());
         BackyardQRContainerType secondBackyardQR(*overflow, 1, frontyard.size());
         std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
@@ -50,8 +50,8 @@ std::pair<bool, bool> DynamicPrefixFilter8Bit::query(std::uint64_t hash) {
     return {backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR).first || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR).first, true}; //Return true if find it in either of the backyard buckets
 }
 
-double DynamicPrefixFilter8Bit::getAverageOverflow() {
-    double overflow = 0.0;
-    for(size_t o: overflows) overflow+=o;
-    return overflow/frontyard.size();
-}
+// double DynamicPrefixFilter8Bit::getAverageOverflow() {
+//     double overflow = 0.0;
+//     for(size_t o: overflows) overflow+=o;
+//     return overflow/frontyard.size();
+// }
