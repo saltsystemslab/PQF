@@ -31,10 +31,11 @@ namespace DynamicPrefixFilter {
             std::vector<FrontyardBucketType> frontyard;
             std::vector<BackyardBucketType> backyard;
             // std::vector<size_t> overflows;
-            std::size_t capacity;
             std::pair<std::uint64_t, std::uint64_t> getQRPairFromHash(std::uint64_t hash);
         
         public:
+            std::size_t capacity;
+            std::size_t range;
             DynamicPrefixFilter8Bit(std::size_t N);
             void insert(std::uint64_t hash);
             std::pair<bool, bool> query(std::uint64_t hash);

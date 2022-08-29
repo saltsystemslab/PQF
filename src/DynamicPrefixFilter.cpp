@@ -8,11 +8,13 @@ DynamicPrefixFilter8Bit::DynamicPrefixFilter8Bit(std::size_t N):
     frontyard((N+BucketNumMiniBuckets-1)/BucketNumMiniBuckets),
     backyard((frontyard.size()+FrontyardToBackyardRatio-1)/FrontyardToBackyardRatio),
     // overflows(frontyard.size()),
-    capacity{N}
+    capacity{N},
+    range{capacity*256}
 {}
 
 std::pair<std::uint64_t, std::uint64_t> DynamicPrefixFilter8Bit::getQRPairFromHash(std::uint64_t hash) {
-    return std::make_pair((hash >> 8) % capacity, hash & 255);
+    // return std::make_pair((hash >> 8) % capacity, hash & 255);
+    return std::make_pair(hash >> 8, hash & 255);
 }
 
 void DynamicPrefixFilter8Bit::insert(std::uint64_t hash) {
