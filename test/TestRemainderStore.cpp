@@ -47,6 +47,13 @@ struct alignas(64) FakeBucket {
         });
     }
 
+    void insertVectorized(uint64_t remainder, pair<size_t, size_t> bounds, optional<uint64_t> expectedOverflow) {
+        basicFunctionTestWrapper([&] () -> void {
+            uint64_t overflow = remainderStore.insertVectorizedFrontyard(remainder, bounds);
+            assert(!expectedOverflow.has_value() || overflow == *expectedOverflow);
+        });
+    }
+
     void checkQuery(std::uint64_t remainder, std::pair<size_t, size_t> bounds, std::uint64_t expectedMask) {
         basicFunctionTestWrapper([&] () -> void {
             uint64_t mask = remainderStore.query(remainder, bounds);
@@ -64,7 +71,7 @@ struct alignas(64) FakeBucket {
     }
 };
 
-template<size_t NumKeys, size_t NumMiniBuckets, template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
+template<size_t NumKeys, size_t NumMiniBuckets, template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize, bool vectorized=false>
 void testBucket(mt19937& generator) {
     cout << "Testing with " << NumKeys << " keys." << endl;
 
@@ -88,11 +95,21 @@ void testBucket(mt19937& generator) {
         size_t maxBound = min(minBound + sizeEachMiniBucket[miniBucketIndex], NumKeys);
         if(i >= NumKeys) {
             pair<size_t, uint64_t> expectedOverflow = *(remainders.rbegin());
-            testBucket.insert(remainder, make_pair(minBound, maxBound), {expectedOverflow.second});
+            if constexpr (vectorized) {
+                testBucket.insertVectorized(remainder, make_pair(minBound, maxBound), {expectedOverflow.second});    
+            }
+            else {
+                testBucket.insert(remainder, make_pair(minBound, maxBound), {expectedOverflow.second});
+            }
             remainders.erase(--remainders.end());
         }
         else {
-            testBucket.insert(remainder, make_pair(minBound, maxBound), {});
+            if constexpr (vectorized) {
+                testBucket.insertVectorized(remainder, make_pair(minBound, maxBound), {});
+            }
+            else {
+                testBucket.insert(remainder, make_pair(minBound, maxBound), {});
+            }
         }
         sizeEachMiniBucket[miniBucketIndex]++;
 
@@ -121,15 +138,15 @@ void testBucket(mt19937& generator) {
     }
 }
 
-template<template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
+template<template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize, bool vectorized = false>
 void runTests(mt19937& generator) {
     for(size_t i{0}; i < 100; i++) {
-        testBucket<15, 1, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<35, 52, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<51, 52, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<25, 26, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<47, 61, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<60, 5, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<15, 1, StoreType, StoreTypeRemainderSize, vectorized>(generator);
+        testBucket<35, 52, StoreType, StoreTypeRemainderSize, vectorized>(generator);
+        testBucket<51, 52, StoreType, StoreTypeRemainderSize, vectorized>(generator);
+        testBucket<25, 26, StoreType, StoreTypeRemainderSize, vectorized>(generator);
+        testBucket<47, 61, StoreType, StoreTypeRemainderSize, vectorized>(generator);
+        testBucket<60, 5, StoreType, StoreTypeRemainderSize, vectorized>(generator);
     }
 }
 
@@ -139,6 +156,8 @@ int main() {
 
     cout << "Testing 8 bit" << endl;
     runTests<RemainderStore8Bit, 8>(generator);
+    cout << "Testing 8 bit vectorized" << endl;
+    runTests<RemainderStore8Bit, 8, true>(generator);
     cout << "Testing 4 bit" << endl;
     runTests<RemainderStore4Bit, 4>(generator);
     cout << "Testing 12 bit (composite of 4 & 8)" << endl;

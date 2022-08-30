@@ -18,6 +18,8 @@
 //Can just have some constexpr static function in this class that tells you the size you need or smth
 //This would also enable the dynamicprefixfilter to have a resolution of individual bits rather than bytes in terms of space usage, although that's less of a concern
 
+
+//Todo: add offset here so that can put this at the end rather than the beginning of the filter. That actually seems to be the *better* memory configuration!
 namespace DynamicPrefixFilter {
     //You have to put the minifilter at the beginning of the bucket! Otherwise it may mess stuff up, since it does something admittedly kinda sus
     //Relies on little endian ordering

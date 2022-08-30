@@ -23,13 +23,39 @@ namespace DynamicPrefixFilter {
         static constexpr std::size_t Size = NumRemainders;
         std::array<std::uint8_t, NumRemainders> remainders;
 
+        static constexpr __mmask64 StoreMask = (NumRemainders + Offset < 64) ? ((1ull << (NumRemainders+Offset)) - (1ull << Offset)) : (-(1ull << Offset));
+
         __m512i* getNonOffsetBucketAddress() {
             return reinterpret_cast<__m512i*>(reinterpret_cast<std::uint8_t*>(&remainders) - Offset);
         }
 
+        //Well the abstraction of being able to just insert into both the backyard and the fronyard without trouble I think failed, so separating it out now
+        //Reason is backyard for supporting 12 bit store this need to return where it put the item, which seems to be a bit of a pain to do (not too bad, but still like a kmov and an lzcnt and some arithmetic)
+        std::uint_fast8_t insertVectorizedFrontyard(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds) {
+            std::uint_fast8_t retval = remainders[NumRemainders-1];
+            if(bounds.second == NumRemainders && remainder > retval) {
+                return remainder;
+            }
+
+            __mmask64 insertingLocMask = _cvtu64_mask64((1ull << (bounds.second+Offset)) - (1ull << (bounds.first+Offset)));
+
+            __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+            __m512i packedRemainders = _mm512_maskz_set1_epi8(_cvtu64_mask64(-1ull), remainder);
+            __mmask64 geMask = _mm512_mask_cmpge_epu8_mask(insertingLocMask, packedStore, packedRemainders); //Want a 1 set where remainders are bigger
+            geMask = _kadd_mask64(geMask, _cvtu64_mask64(-(1ull << bounds.second) - 1ull)); // We will use vpexpandb for this inneficient version, so we want a 1 everywhere except the insert location
+            if constexpr (DEBUG) {
+                assert(__builtin_popcountll(geMask) == 63);
+            }
+            // packedRemainders = _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore);
+            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(geMask, packedStore, packedRemainders)); //the mask blending shouldn't be necessary so let's not
+            _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore)); //the mask blending shouldn't be necessary so let's not
+            return retval;
+        }
+
         //This solution of overflowLocToStore to make 12bit remainder store work is pretty ugly and wouldn't directly work in AVX512, so try to come up with something better!
         //returns the remainder that overflowed. This struct doesn't actually know if there was any overflow, so this might just be a random value.
-        std::uint_fast8_t insertNonVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds, std::pair<size_t, size_t>* insertLoc = NULL) {
+        std::uint_fast8_t insertNonVectorized(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds, std::pair<std::size_t, std::size_t>* insertLoc = NULL) {
             std::uint_fast8_t overflow = remainder;
             // std::cout << (int)overflow << " ";
             if(insertLoc != NULL) *insertLoc = std::make_pair(-1ull, -1ull);
@@ -91,7 +117,7 @@ namespace DynamicPrefixFilter {
         // Original q: Should this even be vectorized really? Cause that would be more consistent, but probably slower on average since maxPossible-minPossible should be p small? Then again already overhead of working with bytes
         // Original plan was: Returns 0 if can definitely say this is not in the filter, 1 if definitely is, 2 if need to go to backyard
         // Feels like def a good idea to vectorize now
-        std::uint64_t queryNonVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+        std::uint64_t queryNonVectorized(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds) {
             std::uint64_t retMask = 0;
             for(size_t i{bounds.first}; i < bounds.second; i++) {
                 if(remainders[i] == remainder) {
