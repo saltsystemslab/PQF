@@ -5,7 +5,7 @@
 #include <cstddef>
 
 namespace DynamicPrefixFilter {
-    constexpr bool DEBUG = true;
+    constexpr bool DEBUG = false;
 }
 
 void printBinaryUInt64(uint64_t x, bool newline=false, int divider=64);

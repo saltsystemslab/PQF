@@ -18,7 +18,7 @@ namespace DynamicPrefixFilter {
     //Only for 8 bit remainders for now
     //Keeps remainders sorted by (miniBucket, remainder) lexicographic order
     //Question: should this structure provide bounds checking? Because theoretically the use case of querying mini filter, then inserting/querying here should never be out of bounds
-    template<std::size_t NumRemainders, std::size_t Offset>
+    template<std::size_t NumRemainders, std::size_t Offset, bool vectorized = true>
     struct alignas(1) RemainderStore8Bit {
         static constexpr std::size_t Size = NumRemainders;
         std::array<std::uint8_t, NumRemainders> remainders;
@@ -33,23 +33,32 @@ namespace DynamicPrefixFilter {
         //Reason is backyard for supporting 12 bit store this need to return where it put the item, which seems to be a bit of a pain to do (not too bad, but still like a kmov and an lzcnt and some arithmetic)
         std::uint_fast8_t insertVectorizedFrontyard(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds) {
             std::uint_fast8_t retval = remainders[NumRemainders-1];
-            if(bounds.second == NumRemainders && remainder > retval) {
+            if(bounds.first >= NumRemainders || (bounds.second == NumRemainders && remainder > retval)) {
                 return remainder;
             }
 
-            __mmask64 insertingLocMask = _cvtu64_mask64((1ull << (bounds.second+Offset)) - (1ull << (bounds.first+Offset)));
+            __mmask64 insertingLocMask = _cvtu64_mask64(((bounds.second+Offset) < 64 ? (1ull << (bounds.second+Offset)) : 0) - (1ull << (bounds.first+Offset)));
 
             __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            // std::cout << "checking" << std::endl;
+            // printBinaryUInt64(insertingLocMask, true);
             __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
             __m512i packedRemainders = _mm512_maskz_set1_epi8(_cvtu64_mask64(-1ull), remainder);
-            __mmask64 geMask = _mm512_mask_cmpge_epu8_mask(insertingLocMask, packedStore, packedRemainders); //Want a 1 set where remainders are bigger
-            geMask = _kadd_mask64(geMask, _cvtu64_mask64(-(1ull << bounds.second) - 1ull)); // We will use vpexpandb for this inneficient version, so we want a 1 everywhere except the insert location
+            __mmask64 geMask = _mm512_mask_cmpge_epu8_mask(insertingLocMask, packedRemainders, packedStore); //Want a 1 set where remainders are bigger
+            // printBinaryUInt64(~geMask, true);
+            // geMask = _kadd_mask64(geMask, _cvtu64_mask64(-(1ull << (bounds.second+Offset)) + ((1ull << (bounds.first + Offset))- 1ull)); // We will use vpexpandb for this inneficient version, so we want a 1 everywhere except the insert location
+            geMask = _knot_mask64(_kadd_mask64(geMask, 1ull << (bounds.first + Offset))); // want a 1 everywhere except in the spot where we want to insert the item, which is the first spot where it is bigger than other people
             if constexpr (DEBUG) {
+                // printBinaryUInt64(~geMask, true);
+                // printBinaryUInt64((1ull << (bounds.second+Offset)), true);
+                // printBinaryUInt64(insertingLocMask, true);
                 assert(__builtin_popcountll(geMask) == 63);
+                assert((~geMask) >= (1ull << (bounds.first+Offset)));
+                assert((~geMask) <= (1ull << (bounds.second+Offset)));
             }
-            // packedRemainders = _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore);
-            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(geMask, packedStore, packedRemainders)); //the mask blending shouldn't be necessary so let's not
-            _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore)); //the mask blending shouldn't be necessary so let's not
+            packedRemainders = _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore);
+            _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, packedRemainders)); //the mask blending shouldn't be necessary in our actual use case but whatever
+            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore)); //the mask blending shouldn't be necessary so let's not
             return retval;
         }
 
@@ -143,7 +152,12 @@ namespace DynamicPrefixFilter {
             if constexpr (DEBUG) {
                 assert(bounds.second <= NumRemainders);
             }
-            return insertNonVectorized(remainder, bounds, insertLoc);
+            if constexpr (!vectorized) {
+                return insertNonVectorized(remainder, bounds, insertLoc);
+            }
+            else {
+                return insertVectorizedFrontyard(remainder, bounds);
+            }
         }
 
         // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
@@ -241,7 +255,7 @@ namespace DynamicPrefixFilter {
     //Oooooops I forgot about ordering so making a 12bit store out of 4 and 8 bit will be hard :(
     template<std::size_t NumRemainders, std::size_t Offset>
     struct alignas(1) RemainderStore12Bit {
-        using Store8BitType = RemainderStore8Bit<NumRemainders, Offset>;
+        using Store8BitType = RemainderStore8Bit<NumRemainders, Offset, false>;
         static constexpr std::size_t Size8BitPart = Store8BitType::Size;
         using Store4BitType = RemainderStore4Bit<NumRemainders, Offset+Size8BitPart>;
         static constexpr std::size_t Size4BitPart = Store4BitType::Size;

@@ -41,15 +41,20 @@ struct alignas(64) FakeBucket {
     void insert(uint64_t remainder, pair<size_t, size_t> bounds, optional<uint64_t> expectedOverflow) {
         // cout << "Inserting " << (int)remainder << " into [" << bounds.first << ", " << bounds.second << ")" << endl;
         basicFunctionTestWrapper([&] () -> void {
+            assert(bounds.first <= bounds.second || bounds.first >= NumKeys);
             uint64_t overflow = remainderStore.insert(remainder, bounds);
-            // cout << ((int)overflow) << " " << ((int)(*expectedOverflow)) << endl;
+            // if(expectedOverflow.has_value())
+            //     cout << ((int)overflow) << " " << ((int)(*expectedOverflow)) << endl;
             assert(!expectedOverflow.has_value() || overflow == *expectedOverflow);
         });
     }
 
     void insertVectorized(uint64_t remainder, pair<size_t, size_t> bounds, optional<uint64_t> expectedOverflow) {
         basicFunctionTestWrapper([&] () -> void {
+            assert(bounds.first <= bounds.second || bounds.first >= NumKeys);
             uint64_t overflow = remainderStore.insertVectorizedFrontyard(remainder, bounds);
+            // if(expectedOverflow.has_value())
+            //     cout << ((int)overflow) << " " << ((int)(*expectedOverflow)) << endl;
             assert(!expectedOverflow.has_value() || overflow == *expectedOverflow);
         });
     }
