@@ -101,6 +101,27 @@ namespace DynamicPrefixFilter {
             return keyIndices;
         }
 
+        std::size_t queryMiniBucketBeginning(std::size_t miniBucketIndex) {
+            //Highly, sus, but whatever
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            std::pair<std::size_t, std::size_t> keyIndices;
+            if(miniBucketIndex == 0) {
+                return 0;
+            }
+            for(size_t remainingBytes{NumBytes}, keysPassed{0}; remainingBytes > 0; remainingBytes-=8, fastCastFilter++) {
+                uint64_t filterSegment = (*fastCastFilter);
+                uint64_t segmentMiniBucketCount = __builtin_popcountll(filterSegment);
+                if (miniBucketIndex <= segmentMiniBucketCount) {
+                    return keysPassed+getKeyIndex(filterSegment, miniBucketIndex-1);
+                }
+                miniBucketIndex -= segmentMiniBucketCount;
+                keysPassed += 64-segmentMiniBucketCount;
+            }
+
+            //Should not get here
+            return 0;
+        }
+
         //Probably not the most efficient implementation, but this one is at least somewhatish straightforward. Still not great and maybe not even correct
         bool shiftFilterBits(std::size_t in) {
             int64_t index = in;

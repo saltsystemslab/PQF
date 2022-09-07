@@ -36,28 +36,28 @@ int main() {
     
     // cout << "Average overflow: " << pf.getAverageOverflow() << endl;
 
-    // for(size_t i{0}; i < N; i++) {
-    //     assert(pf.query(keys[i]).first);
-    // }
+    for(size_t i{0}; i < N; i++) {
+        assert(pf.query(keys[i]).first);
+    }
 
-    // double fpr = 0.0;
-    // double Nf = 0.0;
-    // double bpr = 0.0;
-    // double Nb = 0.0;
-    // for(size_t i{0}; i < N; i++) {
-    //     pair<bool, bool> qres = pf.query(keyDist(generator) % pf.range);
-    //     if(qres.second) {
-    //         Nb++;
-    //         bpr += qres.first;
-    //     }
-    //     else {
-    //         Nf++;
-    //         fpr+=qres.first;
-    //     }
-    // }
-    // double rfpr = (fpr+bpr)/N;
-    // fpr/=Nf;
-    // bpr/=Nb;
-    // cout << "False positive rate: " << rfpr << ", " << fpr << ", " << bpr << endl;
+    double fpr = 0.0;
+    double Nf = 0.0;
+    double bpr = 0.0;
+    double Nb = 0.0;
+    for(size_t i{0}; i < N; i++) {
+        pair<bool, bool> qres = pf.query(keyDist(generator) % pf.range);
+        if(qres.second) {
+            Nb++;
+            bpr += qres.first;
+        }
+        else {
+            Nf++;
+            fpr+=qres.first;
+        }
+    }
+    double rfpr = (fpr+bpr)/N;
+    fpr/=Nf;
+    bpr/=Nb;
+    cout << "False positive rate: " << rfpr << ", " << fpr << ", " << bpr << endl;
 
 }

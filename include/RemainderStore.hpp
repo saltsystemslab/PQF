@@ -47,7 +47,7 @@ namespace DynamicPrefixFilter {
             __mmask64 geMask = _mm512_mask_cmpge_epu8_mask(insertingLocMask, packedRemainders, packedStore); //Want a 1 set where remainders are bigger
             // printBinaryUInt64(~geMask, true);
             // geMask = _kadd_mask64(geMask, _cvtu64_mask64(-(1ull << (bounds.second+Offset)) + ((1ull << (bounds.first + Offset))- 1ull)); // We will use vpexpandb for this inneficient version, so we want a 1 everywhere except the insert location
-            geMask = _knot_mask64(_kadd_mask64(geMask, 1ull << (bounds.first + Offset))); // want a 1 everywhere except in the spot where we want to insert the item, which is the first spot where it is bigger than other people
+            geMask = _knot_mask64(_kadd_mask64(geMask, _cvtu64_mask64(1ull << (bounds.first + Offset)))); // want a 1 everywhere except in the spot where we want to insert the item, which is the first spot where it is bigger than other people
             if constexpr (DEBUG) {
                 // printBinaryUInt64(~geMask, true);
                 // printBinaryUInt64((1ull << (bounds.second+Offset)), true);
@@ -56,7 +56,26 @@ namespace DynamicPrefixFilter {
                 assert((~geMask) >= (1ull << (bounds.first+Offset)));
                 assert((~geMask) <= (1ull << (bounds.second+Offset)));
             }
-            packedRemainders = _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore);
+            packedRemainders = _mm512_mask_expand_epi8(packedRemainders, geMask, packedStore);
+            _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, packedRemainders)); //the mask blending shouldn't be necessary in our actual use case but whatever
+            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore)); //the mask blending shouldn't be necessary so let's not
+            return retval;
+        }
+
+        //loc is equivalent to bounds.first (or really anything in between bounds.first and bounds.second)
+        //Much faster to not keep remainders ordered in a mini bucket, even though it slightly increases chance of needing to go to the backyard for a query
+        std::uint_fast8_t insertVectorizedUnordered(std::uint_fast8_t remainder, std::size_t loc) {
+            if(loc == NumRemainders) return remainder;
+            
+            std::uint_fast8_t retval = remainders[NumRemainders-1];
+
+            __mmask64 insertingLocMask = _cvtu64_mask64(1ull << (loc + Offset));
+
+            __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+            __m512i packedRemainders = _mm512_maskz_set1_epi8(_cvtu64_mask64(-1ull), remainder);
+            packedRemainders = _mm512_mask_expand_epi8(packedRemainders, _knot_mask64(insertingLocMask), packedStore);
+            // _mm512_storeu_si512(nonOffsetAddr, packedRemainders);
             _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, packedRemainders)); //the mask blending shouldn't be necessary in our actual use case but whatever
             // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore)); //the mask blending shouldn't be necessary so let's not
             return retval;
@@ -139,6 +158,7 @@ namespace DynamicPrefixFilter {
         //This is the query to see if we need to go to the backyard. Basically only run this if our mini filter says that there are keys in the mini bucket and the mini bucket is the last one to have keys.
         bool queryOutOfBounds(std::uint_fast8_t remainder) {
             // std::cout << (int)remainder << " " << (int)remainders[NumRemainders-1] << std::endl;
+            if constexpr(vectorized) return true;
             return remainder > remainders[NumRemainders-1];
         }
 
@@ -156,7 +176,7 @@ namespace DynamicPrefixFilter {
                 return insertNonVectorized(remainder, bounds, insertLoc);
             }
             else {
-                return insertVectorizedFrontyard(remainder, bounds);
+                return insertVectorizedUnordered(remainder, bounds.first);
             }
         }
 
@@ -170,10 +190,12 @@ namespace DynamicPrefixFilter {
     };
 
 
-    template<std::size_t NumRemainders, std::size_t Offset>
+    template<std::size_t NumRemainders, std::size_t Offset, bool vectorized = true>
     struct alignas(1) RemainderStore4Bit {
         static constexpr std::size_t Size = (NumRemainders+1)/2;
         std::array<std::uint8_t, Size> remainders;
+
+        static constexpr __mmask64 StoreMask = (Size + Offset < 64) ? ((1ull << (Size+Offset)) - (1ull << Offset)) : (-(1ull << Offset));
 
         __m512i* getNonOffsetBucketAddress() {
             return reinterpret_cast<__m512i*>(reinterpret_cast<std::uint8_t*>(&remainders) - Offset);
@@ -185,11 +207,87 @@ namespace DynamicPrefixFilter {
             return (byte & (0b1111 << (bitGroup*4))) >> (bitGroup*4);
         }
 
+        __m512i getRemainderStoreMask(std::size_t loc) {
+            return _mm512_maskz_set1_epi8(_cvtu64_mask64(1ull << ((loc >> 1) + Offset)), 15ull << ((loc & 1)*4));
+        }
+
+        __m512i getPackedStoreMask(std::size_t loc) {
+            __m512i allOnes = _mm512_maskz_set1_epi8(_cvtu64_mask64((1ull << ((loc >> 1) + Offset)) - 1), (unsigned char)-1ull);
+            if (loc % 2 == 1){
+                __m512i fourBits = _mm512_maskz_set1_epi8(_cvtu64_mask64(1ull << ((loc >> 1) + Offset)), 15);
+                return (__m512i)_mm512_or_ps((__m512)allOnes, (__m512)fourBits);
+            }
+            return allOnes;
+        }
+
         static void set4Bits(std::uint_fast8_t& byte, std::uint_fast8_t bitGroup, std::uint_fast8_t bits) {
             if constexpr (DEBUG) assert(bitGroup <= 1 && bits < 16);
             // std::cout << "Setting 4 bits: " << (int)byte << " " << (int)bitGroup << " " << (int)bits << " ";
             byte = (byte & (0b1111 << ((1-bitGroup)*4))) + (bits << (bitGroup*4));
             // std::cout << (int)byte << std::endl;
+        }
+
+        //Seems quite inneficient honestly
+        std::uint_fast8_t insertVectorizedUnordered(std::uint_fast8_t remainder, std::size_t loc) {
+            if(loc == NumRemainders) return remainder;
+            std::uint_fast8_t retval = get4Bits(remainders[(NumRemainders-1)/2], (NumRemainders-1)%2);
+            std::uint_fast8_t remainderDoubledToFullByte = remainder * 17;
+            // std::cout << "remainder: " << (int)remainder << ", remainder doubled: " << (int)remainderDoubledToFullByte << std::endl;
+
+            // for(size_t i{0}; i < Size; i++) {
+            //     std::cout << (int)get4Bits(remainders[i], 0) << " " << (int) get4Bits(remainders[i], 1) << " ";
+            // }
+            // std::cout << std::endl;
+
+            __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+            
+            __m512i packedRemainders = _mm512_maskz_set1_epi8(_cvtu64_mask64(-1ull), remainderDoubledToFullByte);
+            // std::cout << "Packed remainders: ";
+            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, packedRemainders));
+            // for(size_t i{0}; i < Size; i++) {
+            //     std::cout << (int)get4Bits(remainders[i], 0) << " " << (int) get4Bits(remainders[i], 1) << " ";
+            // }
+            // std::cout << std::endl;
+            __m512i shuffleMoveRight = {7, 0, 1, 2, 3, 4, 5, 6};
+            //  std::cout << "Shuffle move right: ";
+            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, shuffleMoveRight));
+            // for(size_t i{0}; i < Size; i++) {
+            //     std::cout << (int)get4Bits(remainders[i], 0) << " " << (int) get4Bits(remainders[i], 1) << " ";
+            // }
+            // std::cout << std::endl;
+            // std::cout << "Shuffle right: ";
+            __m512i packedStoreShiftedRight = _mm512_permutexvar_epi64(shuffleMoveRight, packedStore);
+            // print_vec(packedStoreShiftedRight, true, 4);
+            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, packedStoreShiftedRight));
+            // for(size_t i{0}; i < Size; i++) {
+            //     std::cout << (int)get4Bits(remainders[i], 0) << " " << (int) get4Bits(remainders[i], 1) << " ";
+            // }
+            // std::cout << std::endl;
+            __m512i packedStoreShiftedRight4Bits = _mm512_shldi_epi64(packedStore, packedStoreShiftedRight, 4);
+            // std::cout << "Shifted 4 bits: ";
+            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, packedStoreShiftedRight4Bits));
+            // for(size_t i{0}; i < Size; i++) {
+            //     std::cout << (int)get4Bits(remainders[i], 0) << " " << (int) get4Bits(remainders[i], 1) << " ";
+            // }
+            // std::cout << std::endl;
+            __m512i newPackedStore = _mm512_ternarylogic_epi32(packedStoreShiftedRight4Bits, packedStore, getPackedStoreMask(loc), 0b11011000);
+            // print_vec(getPackedStoreMask(loc), true, 4);
+            // std::cout << "Packed store b4 adding remainder: ";
+            // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, newPackedStore));
+            // for(size_t i{0}; i < Size; i++) {
+            //     std::cout << (int)get4Bits(remainders[i], 0) << " " << (int) get4Bits(remainders[i], 1) << " ";
+            // }
+            // std::cout << std::endl;
+            // // print_vec(getRemainderStoreMask(loc), true, 4);
+            // std::cout << "Packed store after adding remainder: ";
+            newPackedStore = _mm512_ternarylogic_epi32(newPackedStore, packedRemainders, getRemainderStoreMask(loc), 0b11011000);
+            _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, newPackedStore));
+            // for(size_t i{0}; i < Size; i++) {
+            //     std::cout << (int)get4Bits(remainders[i], 0) << " " << (int) get4Bits(remainders[i], 1) << " ";
+            // }
+            // std::cout << std::endl << std::endl;
+            return retval;
         }
 
         //returns the remainder that overflowed. This struct doesn't actually know if there was any overflow, so this might just be a random value.
@@ -230,6 +328,7 @@ namespace DynamicPrefixFilter {
 
         //This is the query to see if we need to go to the backyard. Basically only run this if our mini filter says that there are keys in the mini bucket and the mini bucket is the last one to have keys.
         bool queryOutOfBounds(std::uint_fast8_t remainder) {
+            if constexpr(vectorized) return true;
             return remainder > get4Bits(remainders[(NumRemainders-1)/2], (NumRemainders-1)%2);
         }
 
@@ -238,6 +337,9 @@ namespace DynamicPrefixFilter {
             if constexpr (DEBUG) {
                 assert(remainder < 16); //make sure is actually within 4 bits
                 assert(bounds.second <= NumRemainders);
+            }
+            if constexpr (vectorized) {
+                return insertVectorizedUnordered(remainder, bounds.first);
             }
             return insertNonVectorized(remainder, bounds);
         }
@@ -253,28 +355,46 @@ namespace DynamicPrefixFilter {
     };
 
     //Oooooops I forgot about ordering so making a 12bit store out of 4 and 8 bit will be hard :(
-    template<std::size_t NumRemainders, std::size_t Offset>
+    template<std::size_t NumRemainders, std::size_t Offset, bool vectorized=true>
     struct alignas(1) RemainderStore12Bit {
-        using Store8BitType = RemainderStore8Bit<NumRemainders, Offset, false>;
-        static constexpr std::size_t Size8BitPart = Store8BitType::Size;
-        using Store4BitType = RemainderStore4Bit<NumRemainders, Offset+Size8BitPart>;
+        using Store4BitType = RemainderStore4Bit<NumRemainders, Offset, vectorized>;
         static constexpr std::size_t Size4BitPart = Store4BitType::Size;
+        using Store8BitType = RemainderStore8Bit<NumRemainders, Offset+Size4BitPart, vectorized>;
+        static constexpr std::size_t Size8BitPart = Store8BitType::Size;
         static constexpr std::size_t Size = Size8BitPart+Size4BitPart;
 
         Store8BitType store8BitPart;
         Store4BitType store4BitPart;
 
         bool queryOutOfBounds(std::uint_fast16_t remainder) {
+            if constexpr(vectorized) return true;
             uint_fast8_t remainder8BitPart = remainder >> 4;
             uint_fast8_t remainder4BitPart = remainder & 15;
             
             return store8BitPart.queryOutOfBounds(remainder8BitPart) || (store8BitPart.queryMightBeOutOfBounds(remainder8BitPart) && store4BitPart.queryOutOfBounds(remainder4BitPart));
         }
 
+        std::uint_fast16_t insertVectorizedUnordered(std::uint_fast16_t remainder, std::size_t loc) {
+            if constexpr (DEBUG) {
+                assert(remainder <= 4095);
+                assert(loc <= NumRemainders);
+            }
+
+            uint_fast8_t remainder8BitPart = remainder >> 4;
+            uint_fast8_t remainder4BitPart = remainder & 15;
+            uint_fast16_t overflow = store8BitPart.insertVectorizedUnordered(remainder8BitPart, loc) << 4ull;
+            overflow |= store4BitPart.insertVectorizedUnordered(remainder4BitPart, loc);
+            return overflow;
+        }
+
         std::uint_fast16_t insert(std::uint_fast16_t remainder, std::pair<size_t, size_t> bounds) {
             if constexpr (DEBUG) {
                 assert(remainder <= 4095);
                 assert(bounds.second <= NumRemainders);
+            }
+
+            if constexpr (vectorized) {
+                return insertVectorizedUnordered(remainder, bounds.first);
             }
 
             uint_fast8_t remainder8BitPart = remainder >> 4;

@@ -8,7 +8,7 @@
 namespace DynamicPrefixFilter {
     //Maybe have a bit set to if the bucket is not overflowed? Cause right now the bucket may send you to the backyard even if there is nothing in the backyard, but the bucket is just full. Not that big a deal, but this slight optimization might be worth a bit?
     //Like maybe have one extra key in the minifilter and then basically account for that or smth? Not sure.
-    template<std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t, std::size_t> typename TypeOfRemainderStoreTemplate, template<std::size_t> typename TypeOfQRContainerTemplate>
+    template<std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t, std::size_t> typename TypeOfRemainderStoreTemplate, template<std::size_t> typename TypeOfQRContainerTemplate, bool optimized=true>
     struct Bucket {
         using TypeOfMiniFilter = MiniFilter<NumKeys, NumMiniBuckets>;
         TypeOfMiniFilter miniFilter;
@@ -18,9 +18,18 @@ namespace DynamicPrefixFilter {
         
         //Returns an overflowed remainder if there was one to be sent to the backyard.
         std::optional<TypeOfQRContainer> insert(TypeOfQRContainer qr) {
-            std::pair<std::size_t, std::size_t> bounds = miniFilter.queryMiniBucketBounds(qr.miniBucketIndex);
-            std::optional<uint64_t> miniFilterOverflow = miniFilter.insert(qr.miniBucketIndex, bounds.first);
-            std::uint64_t overflowRemainder = remainderStore.insert(qr.remainder, bounds);
+            std::optional<uint64_t> miniFilterOverflow;
+            std::uint64_t overflowRemainder;
+            if constexpr (optimized) {
+                std::size_t firstBound = miniFilter.queryMiniBucketBeginning(qr.miniBucketIndex);
+                miniFilterOverflow = miniFilter.insert(qr.miniBucketIndex, firstBound);
+                overflowRemainder = remainderStore.insertVectorizedUnordered(qr.remainder, firstBound);
+            }
+            else {
+                std::pair<std::size_t, std::size_t> bounds = miniFilter.queryMiniBucketBounds(qr.miniBucketIndex);
+                miniFilterOverflow = miniFilter.insert(qr.miniBucketIndex, bounds.first);
+                overflowRemainder = remainderStore.insert(qr.remainder, bounds);
+            }
             // std::cout << bounds.first << " " << miniFilterOverflow.has_value() << std::endl;
             if (miniFilterOverflow.has_value()) {
                 //somewhat janky code. Later make QRContainer do the change, just to encapsulate things properly.
