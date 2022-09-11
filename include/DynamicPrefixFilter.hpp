@@ -22,23 +22,24 @@ namespace DynamicPrefixFilter {
 
         private:
             using FrontyardQRContainerType = FrontyardQRContainer<BucketNumMiniBuckets>;
-            using FrontyardBucketType = Bucket<FrontyardBucketCapacity, BucketNumMiniBuckets, RemainderStore8Bit, FrontyardQRContainer, true>;
+            using FrontyardBucketType = Bucket<FrontyardBucketCapacity, BucketNumMiniBuckets, RemainderStore8Bit, FrontyardQRContainer>;
             using BackyardQRContainerType = BackyardQRContainer<BucketNumMiniBuckets, 8, FrontyardToBackyardRatio>;
             template<size_t NumMiniBuckets>
             using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, 8, FrontyardToBackyardRatio>;
-            using BackyardBucketType = Bucket<BackyardBucketCapacity, BucketNumMiniBuckets, RemainderStore12Bit, WrappedBackyardQRContainerType, true>;
+            using BackyardBucketType = Bucket<BackyardBucketCapacity, BucketNumMiniBuckets, RemainderStore12Bit, WrappedBackyardQRContainerType>;
             
             std::vector<FrontyardBucketType> frontyard;
             std::vector<BackyardBucketType> backyard;
             // std::vector<size_t> overflows;
-            std::pair<std::uint64_t, std::uint64_t> getQRPairFromHash(std::uint64_t hash);
+            FrontyardQRContainerType getQRPairFromHash(std::uint64_t hash);
+            void insertOverflow(FrontyardQRContainerType overflow);
         
         public:
             std::size_t capacity;
             std::size_t range;
             DynamicPrefixFilter8Bit(std::size_t N);
             void insert(std::uint64_t hash);
-            std::pair<bool, bool> query(std::uint64_t hash);
+            std::uint64_t query(std::uint64_t hash);
             // double getAverageOverflow();
 
     };

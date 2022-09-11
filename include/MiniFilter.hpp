@@ -202,13 +202,13 @@ namespace DynamicPrefixFilter {
         
         //Returns true if the filter was full and had to kick somebody to make room.
         //Since we assume that keyIndex was obtained with a query or is at least valid, we have an implicit assertion that keyIndex <= NumKeys (so can essentially be the key bigger than all the other keys in the filter & it becomes the overflow)
-        std::optional<uint64_t> insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
+        std::uint64_t insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
             std::size_t bitIndex = miniBucketIndex + keyIndex;
             bool overflow = shiftFilterBits(bitIndex);
-            if (overflow) {
+            if (__builtin_expect(overflow, 0)) {
                 return fixOverflow();
             }
-            return {};
+            return -1ull;
         }
 
         //We implement this by counting where the last bucket cutoff is, and then the number of keys is just that minus the number of buckets. So p similar to fixOverflow()
