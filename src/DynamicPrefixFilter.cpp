@@ -46,7 +46,11 @@ void DynamicPrefixFilter8Bit::insert(std::uint64_t hash) {
     // FrontyardQRContainerType frontyardQR(qrPair.first, qrPair.second);
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     FrontyardQRContainerType overflow = frontyard[frontyardQR.bucketIndex].insert(frontyardQR);
-    if(__builtin_expect(overflow.miniBucketIndex != -1ull, 0)) {
+    if constexpr (DEBUG) {
+        assert((uint64_t)(&frontyard[frontyardQR.bucketIndex]) % 64 == 0);
+        assert(sizeof(frontyard[frontyardQR.bucketIndex]) == 64);
+    }
+    if(overflow.miniBucketIndex != -1ull) {
         // overflows[frontyardQR.bucketIndex]++;
         insertOverflow(overflow);
     }

@@ -122,6 +122,7 @@ namespace DynamicPrefixFilter {
             return 0;
         }
 
+        //Vectorize as in the 4 bit remainder store? Probably not needed for if fits in 64 bits, so have a constexpr there.
         //Probably not the most efficient implementation, but this one is at least somewhatish straightforward. Still not great and maybe not even correct
         bool shiftFilterBits(std::size_t in) {
             int64_t index = in;
@@ -205,7 +206,7 @@ namespace DynamicPrefixFilter {
         std::uint64_t insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
             std::size_t bitIndex = miniBucketIndex + keyIndex;
             bool overflow = shiftFilterBits(bitIndex);
-            if (__builtin_expect(overflow, 0)) {
+            if (overflow) {
                 return fixOverflow();
             }
             return -1ull;
