@@ -34,7 +34,7 @@ namespace DynamicPrefixFilter {
         static constexpr std::uint64_t lastSegmentMask = (NumBits%64 == 0) ? -1ull : (1ull << (NumBits%64))-1ull;
         std::array<uint8_t, NumBytes> filterBytes;
 
-        MiniFilter() {
+        constexpr MiniFilter() {
             // Maybe should actually do with manipulating ullongs for efficiency, but for now just taking the easy route. Technically setup cost anyways so who cares amirite?
             int64_t numBitsNeedToSet = NumMiniBuckets;
             for(uint8_t& b: filterBytes) {
@@ -103,11 +103,11 @@ namespace DynamicPrefixFilter {
 
         std::size_t queryMiniBucketBeginning(std::size_t miniBucketIndex) {
             //Highly, sus, but whatever
-            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
-            std::pair<std::size_t, std::size_t> keyIndices;
             if(miniBucketIndex == 0) {
                 return 0;
             }
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            std::pair<std::size_t, std::size_t> keyIndices;
             for(size_t remainingBytes{NumBytes}, keysPassed{0}; remainingBytes > 0; remainingBytes-=8, fastCastFilter++) {
                 uint64_t filterSegment = (*fastCastFilter);
                 uint64_t segmentMiniBucketCount = __builtin_popcountll(filterSegment);

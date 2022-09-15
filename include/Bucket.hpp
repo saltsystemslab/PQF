@@ -19,6 +19,8 @@ namespace DynamicPrefixFilter {
         //Returns an overflowed remainder if there was one to be sent to the backyard.
         TypeOfQRContainer insert(TypeOfQRContainer qr) {
             std::size_t loc = miniFilter.queryMiniBucketBeginning(qr.miniBucketIndex);
+            // std::size_t loc = 0;
+            if(__builtin_expect(loc == NumKeys, 0)) return qr; //Find a way to remove this if statement!!! That would shave off an entire second!
             qr.miniBucketIndex = miniFilter.insert(qr.miniBucketIndex, loc);
             std::uint64_t overflowRemainder = remainderStore.insert(qr.remainder, loc);
             qr.remainder = overflowRemainder;

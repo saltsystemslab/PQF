@@ -81,10 +81,11 @@ namespace DynamicPrefixFilter {
 
         std::uint_fast8_t insert(std::uint_fast8_t remainder, std::size_t loc) {
             if constexpr (DEBUG) {
-                assert(loc <= NumRemainders);
+                assert(loc < NumRemainders);
             }
             std::uint_fast8_t retval = remainders[NumRemainders-1];
-            if(loc == NumRemainders) retval = remainder;
+            // if(__builtin_expect(loc == NumRemainders, 0)) return remainder; It is so crazy that commenting out this one line reduced throughput from 70 ns / ins to 57 ns/ins. It really doesn't make sense to me why. Like this wouldn't affect control flow at all (in the even slightly slower version I just changed it to change the value of retval rather than return, so that literally changed nothing about what is executed), and there is no data dependency between retval and stuff until several instructions later, so that should easily fit in the 17 cycle pipeline, but idk. I think it would be a really good exercise in understanding computer architecture to explain this
+            // std::uint_fast8_t retval = (loc == NumRemainders) ? remainder : remainders[NumRemainders-1];
 
             __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
             __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
