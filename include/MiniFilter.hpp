@@ -101,25 +101,59 @@ namespace DynamicPrefixFilter {
             return keyIndices;
         }
 
+        // std::size_t queryMiniBucketBeginning(std::size_t miniBucketIndex) {
+        //     //Highly, sus, but whatever
+        //     if(miniBucketIndex == 0) {
+        //         return 0;
+        //     }
+        //     uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+        //     std::pair<std::size_t, std::size_t> keyIndices;
+        //     for(size_t remainingBytes{NumBytes}, keysPassed{0}; remainingBytes > 0; remainingBytes-=8, fastCastFilter++) {
+        //         uint64_t filterSegment = (*fastCastFilter);
+        //         uint64_t segmentMiniBucketCount = __builtin_popcountll(filterSegment);
+        //         if (miniBucketIndex <= segmentMiniBucketCount) {
+        //             return keysPassed+getKeyIndex(filterSegment, miniBucketIndex-1);
+        //         }
+        //         miniBucketIndex -= segmentMiniBucketCount;
+        //         keysPassed += 64-segmentMiniBucketCount;
+        //     }
+
+        //     //Should not get here
+        //     return 0;
+        // }
+
         std::size_t queryMiniBucketBeginning(std::size_t miniBucketIndex) {
             //Highly, sus, but whatever
             if(miniBucketIndex == 0) {
                 return 0;
             }
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
-            std::pair<std::size_t, std::size_t> keyIndices;
-            for(size_t remainingBytes{NumBytes}, keysPassed{0}; remainingBytes > 0; remainingBytes-=8, fastCastFilter++) {
-                uint64_t filterSegment = (*fastCastFilter);
-                uint64_t segmentMiniBucketCount = __builtin_popcountll(filterSegment);
-                if (miniBucketIndex <= segmentMiniBucketCount) {
-                    return keysPassed+getKeyIndex(filterSegment, miniBucketIndex-1);
-                }
-                miniBucketIndex -= segmentMiniBucketCount;
-                keysPassed += 64-segmentMiniBucketCount;
+            if constexpr (NumBytes <= 8) {
+                return getKeyIndex(*fastCastFilter, miniBucketIndex-1);
             }
-
-            //Should not get here
-            return 0;
+            else if (NumBytes <= 16) { //The code below should be expanded to this but I'm doing this to be safe. Obviously these if statements need somehow to go if we wanna optimize?
+                uint64_t segmentMiniBucketCount = __builtin_popcountll(*fastCastFilter);
+                if (miniBucketIndex <= segmentMiniBucketCount) {
+                    return getKeyIndex(*fastCastFilter, miniBucketIndex-1);
+                }
+                else {
+                    return getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount-1) + 64 - segmentMiniBucketCount;
+                }
+            }
+            else{
+                std::pair<std::size_t, std::size_t> keyIndices;
+                for(size_t remainingBytes{NumBytes}, keysPassed{0}; remainingBytes > 0; remainingBytes-=8, fastCastFilter++) {
+                    uint64_t filterSegment = (*fastCastFilter);
+                    uint64_t segmentMiniBucketCount = __builtin_popcountll(filterSegment);
+                    if (miniBucketIndex <= segmentMiniBucketCount) {
+                        return keysPassed+getKeyIndex(filterSegment, miniBucketIndex-1);
+                    }
+                    miniBucketIndex -= segmentMiniBucketCount;
+                    keysPassed += 64-segmentMiniBucketCount;
+                }
+                //Should not get here
+                return 0;
+            }
         }
 
         //Vectorize as in the 4 bit remainder store? Probably not needed for if fits in 64 bits, so have a constexpr there.
