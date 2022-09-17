@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cassert>
 #include <optional>
+#include <bit>
 #include "TestUtility.hpp"
 
 //Once get this working, turn this into more of an interface by not having this actually store the data
@@ -156,6 +157,66 @@ namespace DynamicPrefixFilter {
             }
         }
 
+        // static constexpr std::size_t CarryBitMask16Byte() {
+        //     static_assert(NumBits <= 128 || NumBytes > 16); //constexprs are awful
+        //     if constexpr (NumBits > 64 && NumBits <= 128) {
+        //         return 1ull << (NumBits-65);
+        //     }
+        //     else if (NumBits == 64){
+        //         return -1ull;
+        //     }
+        //     else { //nonsense value just to compile
+        //         return 0;
+        //     }
+        // }
+
+        //really just a "__m128i" version of ~((1ull << loc) - 1) or like -(1ull << loc)
+        static constexpr __m128i getShiftMask(std::size_t loc) {
+            std::array<std::uint64_t, 2> ulongs;
+            for(size_t i=0; i < 2; i++, loc-=64) {
+                if(loc >= 128) ulongs[i] = -1ull; //wrapped around so we want to set everything to zero
+                else if (loc >= 64){
+                    ulongs[i] = 0;
+                }
+                else {
+                    ulongs[i] = -(1ull << loc);
+                }
+            }
+            ulongs[1] &= lastSegmentMask;
+            return std::bit_cast<__m128i>(ulongs);
+        }
+
+        static constexpr std::array<m128iWrapper, 128> getShiftMasks() {
+            std::array<m128iWrapper, 128> masks;
+            for(size_t i = 0; i < 128; i++) {
+                masks[i] = getShiftMask(i);
+            }
+            return masks;
+        }
+
+        static constexpr std::array<m128iWrapper, 128> ShiftMasks = getShiftMasks();
+
+        static constexpr __m128i getZeroMask(std::size_t loc) {
+            std::array<std::uint64_t, 2> ulongs;
+            for(size_t i=0; i < 2; i++, loc-=64) {
+                if(loc >= 64) ulongs[i] = -1ull; //funny that this works even when loc "wraps around" and becomes massive cause its unsigned
+                else {
+                    ulongs[i] = ~(1ull << loc);
+                }
+            }
+            return std::bit_cast<__m128i>(ulongs);
+        }
+
+        static constexpr std::array<m128iWrapper, 128> getZeroMasks() {
+            std::array<m128iWrapper, 128> masks;
+            for(size_t i = 0; i < 128; i++) {
+                masks[i] = getZeroMask(i);
+            }
+            return masks;
+        }
+
+        static constexpr std::array<m128iWrapper, 128> ZeroMasks = getZeroMasks();
+
         //Vectorize as in the 4 bit remainder store? Probably not needed for if fits in 64 bits, so have a constexpr there.
         //Probably not the most efficient implementation, but this one is at least somewhatish straightforward. Still not great and maybe not even correct
         bool shiftFilterBits(std::size_t in) {
@@ -164,25 +225,103 @@ namespace DynamicPrefixFilter {
             std::size_t endIndex = NumBits;
             uint64_t oldCarryBit = 0;
             uint64_t carryBit = 0;
-            for(size_t i{0}; i < NumUllongs; i++, fastCastFilter++, index-=64, endIndex-=64) {
-                // printBinaryUInt64(*fastCastFilter, true);
-                std::size_t segmentStartIndex = std::max((long long)index, 0ll);
-                if(segmentStartIndex >= 64) continue;
-                uint64_t shiftBitIndex = 1ull << segmentStartIndex;
-                uint64_t shiftMask = -(shiftBitIndex);
-                uint64_t shiftedSegment = ((*fastCastFilter) & shiftMask) << 1;
-                if(endIndex < 64) {
-                    // std::cout << endIndex << std::endl;
-                    shiftMask &= (1ull << endIndex) - 1;
-                    carryBit = (*fastCastFilter) & (1ull << (endIndex-1));
-                    // std::cout << carryBit << std::endl;
+            // if constexpr (NumBytes <= 8) {
+            //     // assert((long long) index >= 0);
+            //     // std::size_t segmentStartIndex = index;
+            //     // uint64_t shiftBitIndex = 1ull << segmentStartIndex;
+            //     // uint64_t shiftMask = -(shiftBitIndex);
+            //     // uint64_t shiftedSegment = ((*fastCastFilter) & shiftMask) << 1;
+            //     // if constexpr(NumBits == 64) {
+            //     //     carryBit = (*fastCastFilter) & (1ull << 63);
+            //     // }
+            //     // else{
+            //     //     shiftMask &= lastSegmentMask;
+            //     //     carryBit = (*fastCastFilter) & (1ull << (NumBits-1));
+            //     // }
+            //     // carryBit = carryBit != 0;
+            //     // *fastCastFilter = (*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask);
+            //     uint64_t shiftBitIndex = 1ull << in;
+            //     uint64_t shiftMask = (-(shiftBitIndex)) & lastSegmentMask;
+            //     constexpr size_t carryBitMask = 1ull << (NumBits-1);
+            //     carryBit = (*fastCastFilter) & carryBitMask;
+            //     uint64_t shiftedSegment = (*fastCastFilter) << 1;
+            //     *fastCastFilter = ((*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask)) & (~shiftBitIndex);
+            // }
+            // else if (NumBytes <= 16) {
+            //     if (in <= 64) {
+            //         uint64_t shiftBitIndex = 0;
+            //         if(in < 64) {
+            //             shiftBitIndex = 1ull << in;
+            //         }
+            //         uint64_t shiftMask = (-(shiftBitIndex));
+            //         constexpr size_t carryBitMask = 1ull << 63;
+            //         oldCarryBit = ((*fastCastFilter) & carryBitMask) != 0;
+            //         uint64_t shiftedSegment = (*fastCastFilter) << 1;
+            //         *fastCastFilter = ((*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask)) & (~shiftBitIndex);
+            //         in = 64;
+            //     }
+            //     uint64_t shiftBitIndex = 1ull << (in-64);
+            //     uint64_t shiftMask = (-(shiftBitIndex)) & lastSegmentMask;
+            //     static constexpr std::size_t carryBitMask = CarryBitMask16Byte();
+            //     carryBit = (*fastCastFilter+1) & carryBitMask;
+            //     uint64_t shiftedSegment = (*(fastCastFilter +1)) << 1;
+            //     *(fastCastFilter+1) = ((*(fastCastFilter+1) & (~shiftMask)) | (shiftedSegment & shiftMask)) & (~(shiftBitIndex * oldCarryBit));
+            // }
+            if constexpr (NumBytes > 8 && NumBytes <= 16) {
+                // carryBit = *(fastCastFilter+1) && (1ull << (NumBits-64)); //Why does this single line make the code FIVE TIMES slower? From 3 secs to 15?
+                __m128i* castedFilterAddress = reinterpret_cast<__m128i*>(&filterBytes);
+                // std::cout << "cc" << std::endl;
+                // printMiniFilter(filterBytes);
+                // std::cout << std::endl;
+                __m128i filterVec = _mm_loadu_si128(castedFilterAddress);
+                static constexpr __m128i extractCarryBit = {0, (NumBits-65) << 56};
+                carryBit = _mm_bitshuffle_epi64_mask(filterVec, extractCarryBit) >> 15;
+                __m128i filterVecShiftedLeftByLong = _mm_bslli_si128(filterVec, 8);
+                // _mm_storeu_si128(castedFilterAddress, filterVecShiftedLeftByLong);
+                // std::cout << "fvsll" << std::endl;
+                // printMiniFilter(filterBytes);
+                // std::cout << std::endl;
+                __m128i shiftedFilterVec = _mm_shldi_epi64(filterVec, filterVecShiftedLeftByLong, 1);
+                // _mm_storeu_si128(castedFilterAddress, shiftedFilterVec);
+                // std::cout << "sfv" << std::endl;
+                // printMiniFilter(filterBytes);
+                // std::cout << std::endl;
+                filterVec = _mm_ternarylogic_epi32(filterVec, shiftedFilterVec, ShiftMasks[in], 0b11011000);
+                // _mm_storeu_si128(castedFilterAddress, filterVec);
+                // std::cout << "fvtle" << std::endl;
+                // printMiniFilter(filterBytes);
+                // std::cout << std::endl;
+                filterVec = _mm_and_si128(filterVec, ZeroMasks[in]);
+                // std::cout << "ZeroMask[" << in << "]" << std::endl;
+                // _mm_storeu_si128(castedFilterAddress, ZeroMasks[in]);
+                // printMiniFilter(filterBytes);
+                // std::cout << std::endl;
+                _mm_storeu_si128(castedFilterAddress, filterVec);
+                // printMiniFilter(filterBytes);
+                // std::cout << std::endl << "done" << std::endl;
+                // std::cout << carryBit << std::endl;
+            }
+            else {
+                for(size_t i{0}; i < NumUllongs; i++, fastCastFilter++, index-=64, endIndex-=64) {
+                    // printBinaryUInt64(*fastCastFilter, true);
+                    std::size_t segmentStartIndex = std::max((long long)index, 0ll);
+                    if(segmentStartIndex >= 64) continue;
+                    uint64_t shiftBitIndex = 1ull << segmentStartIndex;
+                    uint64_t shiftMask = -(shiftBitIndex);
+                    uint64_t shiftedSegment = ((*fastCastFilter) & shiftMask) << 1;
+                    if(endIndex < 64) {
+                        // std::cout << endIndex << std::endl;
+                        shiftMask &= (1ull << endIndex) - 1;
+                        carryBit = (*fastCastFilter) & (1ull << (endIndex-1));
+                        // std::cout << carryBit << std::endl;
+                    }
+                    else {
+                        carryBit = (*fastCastFilter) & (1ull << 63);
+                    }
+                    carryBit = carryBit != 0;
+                    *fastCastFilter = (*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask) | (oldCarryBit << segmentStartIndex);
+                    oldCarryBit = carryBit;
                 }
-                else {
-                    carryBit = (*fastCastFilter) & (1ull << 63);
-                }
-                carryBit = carryBit != 0;
-                *fastCastFilter = (*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask) | (oldCarryBit << segmentStartIndex);
-                oldCarryBit = carryBit;
             }
 
             return carryBit;
@@ -238,6 +377,7 @@ namespace DynamicPrefixFilter {
         //Returns true if the filter was full and had to kick somebody to make room.
         //Since we assume that keyIndex was obtained with a query or is at least valid, we have an implicit assertion that keyIndex <= NumKeys (so can essentially be the key bigger than all the other keys in the filter & it becomes the overflow)
         std::uint64_t insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
+            if constexpr (DEBUG) assert(keyIndex != NumBits);
             std::size_t bitIndex = miniBucketIndex + keyIndex;
             bool overflow = shiftFilterBits(bitIndex);
             if (overflow) {
@@ -261,7 +401,7 @@ namespace DynamicPrefixFilter {
             int64_t bitsLeftInFilter = withExtraBytes ? NumUllongs*64 : NumBits;
             for(std::size_t i{0}; i < NumBytes; i++) {
                 uint8_t byte = filterBytes[i];
-                for(size_t j{0}; j < 8 && j < bitsLeftInFilter; j++, byte >>= 1) {
+                for(int64_t j{0}; j < 8 && j < bitsLeftInFilter; j++, byte >>= 1) {
                     std::cout << (byte & 1);
                 }
                 bitsLeftInFilter -= 8;
@@ -308,19 +448,19 @@ namespace DynamicPrefixFilter {
                 }
                 *byteToChange |= 1 << lastZeroPos;
             }
-            std::optional<uint64_t> overflow = insert(miniBucketIndex, keyIndex);
+            std::uint64_t overflow = insert(miniBucketIndex, keyIndex);
             // std::cout << std::endl;
             // printMiniFilter(filterBytes);
             // std::cout << std::endl;
             // std::cout << std::endl;
             // printMiniFilter(expectedFilterBytes, true);
             // std::cout << std::endl;
-            // std::cout << overflow << " " << expectedOverflow << std::endl;
+            // std::cout << overflow << " " << *expectedOverflow << std::endl;
             assert(expectedFilterBytes == filterBytes);
-            assert(overflow.has_value() == expectedOverflow.has_value());
-            if(overflow.has_value()) {
+            assert((overflow != -1ull) == expectedOverflow.has_value());
+            if((overflow != -1ull)) {
                 // std::cout << (*overflow) << " " << (*expectedOverflow) << std::endl;
-                assert(*overflow == *expectedOverflow);
+                assert(overflow == *expectedOverflow);
             }
             return overflow;
         }

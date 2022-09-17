@@ -26,16 +26,16 @@ void DynamicPrefixFilter8Bit::insertOverflow(FrontyardQRContainerType overflow) 
     // std::cout << firstBackyardQR.bucketIndex << " " << secondBackyardQR.bucketIndex << " " << fillOfFirstBackyardBucket << " " << fillOfSecondBackyardBucket << std::endl;
     
     if(fillOfFirstBackyardBucket < fillOfSecondBackyardBucket) {
-        // if constexpr (DEBUG)
-        //     assert(!backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).has_value()); //Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
-        // else 
+        if constexpr (DEBUG)
+            assert(backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex != -1ull); //Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
+        else 
             backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR);
         // assert(query(hash));
     }
     else {
-        // if constexpr (DEBUG)
-        //     assert(!backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).has_value());
-        // else
+        if constexpr (DEBUG)
+            assert(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex != -1ull);
+        else
             backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR);
         // assert(query(hash));
     }

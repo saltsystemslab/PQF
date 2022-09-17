@@ -8,6 +8,14 @@
 namespace DynamicPrefixFilter {
     constexpr bool DEBUG = false;
 
+    struct alignas(16) m128iWrapper {
+        static constexpr __m128i zero = {0, 0};
+        __m128i m;
+        constexpr m128iWrapper(__m128i m = zero) : m(m) {}
+        constexpr operator __m128i&() {return m;}
+        constexpr operator __m128i() const {return m;}
+    };
+
     struct alignas(64) m512iWrapper {
         static constexpr __m512i zero = {0, 0, 0, 0, 0, 0, 0, 0};
         __m512i m;

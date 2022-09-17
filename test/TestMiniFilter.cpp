@@ -44,6 +44,7 @@ struct alignas(1) FakeBucket {
         basicFunctionTestWrapper([&] () -> void {
             retval = filterBytes.testInsert(miniBucketIndex, keyIndex);
         });
+        if(*retval == -1ull) return {};
         return retval;
     }
 
