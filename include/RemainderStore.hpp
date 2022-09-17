@@ -109,12 +109,21 @@ namespace DynamicPrefixFilter {
             return retMask;
         }
 
+        std::uint64_t queryVectorized(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds) {
+            __mmask64 queryMask = _cvtu64_mask64(((1ull << bounds.second) - (1ull << bounds.first)) << Offset);
+            __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+            __m512i remainderVec = _mm512_maskz_set1_epi8(-1ull, remainder);
+            return _cvtmask64_u64(_mm512_mask_cmpeq_epu8_mask(queryMask, packedStore, remainderVec)) >> Offset;
+        }
+
         // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
         std::uint64_t query(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
             if constexpr (DEBUG) {
                 assert(bounds.second <= NumRemainders);
             }
-            return queryNonVectorized(remainder, bounds);
+            // return queryNonVectorized(remainder, bounds);
+            return queryVectorized(remainder, bounds);
         }
     };
 

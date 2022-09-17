@@ -69,11 +69,14 @@ void DynamicPrefixFilter8Bit::insert(std::uint64_t hash) {
 //     return {backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR).first || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR).first, true}; //Return true if find it in either of the backyard buckets
 // }
 
+// static uint64_t XYZ = 0;
+
 std::uint64_t DynamicPrefixFilter8Bit::query(std::uint64_t hash) {
     // std::pair<std::uint64_t, std::uint64_t> qrPair = getQRPairFromHash(hash);
     // FrontyardQRContainerType frontyardQR(qrPair.first, qrPair.second);
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     std::uint64_t frontyardQuery = frontyard[frontyardQR.bucketIndex].query(frontyardQR);
+    // std::uint64_t frontyardQuery = (XYZ++) & 16;
     // if(frontyardQuery.first) return 1; //found it in the frontyard
     // if(!frontyardQuery.second) return 0; //didn't find it in frontyard and don't need to go to backyard, so we done
     if(frontyardQuery != 2) return frontyardQuery;

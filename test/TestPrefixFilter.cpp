@@ -40,6 +40,7 @@ int main() {
     for(size_t i{0}; i < N; i++) {
         // assert(pf.query(keys[i]).first);
         assert(pf.query(keys[i]) & 1);
+        // [[maybe_unused]] uint64_t x = pf.query(keys[i]) & 1;
     }
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);

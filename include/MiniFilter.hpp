@@ -77,29 +77,53 @@ namespace DynamicPrefixFilter {
         std::pair<std::size_t, std::size_t> queryMiniBucketBounds(std::size_t miniBucketIndex) {
             //Highly, sus, but whatever
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
-            std::pair<std::size_t, std::size_t> keyIndices;
-            if(miniBucketIndex == 0) {
-                keyIndices.first = 0;
-            }
-            for(size_t remainingBytes{NumBytes}, keysPassed{0}; remainingBytes > 0; remainingBytes-=8, fastCastFilter++) {
-                uint64_t filterSegment = (*fastCastFilter);
-                // if(remainingBytes < 8) {
-                //     filterSegment = filterSegment & (~((1ull << (remainingBytes*8))- 1));
-                // } //Should actually be unnecessary! But keeping this in to remind that this is technically accessing memory it may not be supposed to
-                uint64_t segmentMiniBucketCount = __builtin_popcountll(filterSegment);
-                if (miniBucketIndex != 0 && miniBucketIndex-1 < segmentMiniBucketCount) {
-                    keyIndices.first = keysPassed+getKeyIndex(filterSegment, miniBucketIndex-1);
+            if constexpr (NumBytes <= 8) {
+                if(miniBucketIndex == 0) {
+                    return std::make_pair(0, getKeyIndex(*fastCastFilter, miniBucketIndex));
                 }
-                if(miniBucketIndex < segmentMiniBucketCount) {
-                    keyIndices.second = keysPassed+getKeyIndex(filterSegment, miniBucketIndex);
-                    return keyIndices;
+                else {
+                    return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*fastCastFilter, miniBucketIndex));
                 }
-                miniBucketIndex -= segmentMiniBucketCount;
-                keysPassed += 64-segmentMiniBucketCount;
             }
-
-            //Should not get here
-            return keyIndices;
+            // else if (NumBytes <= 16 && NumKeys < 64) { //A bit sus implementation for now but should work?
+            //     uint64_t segmentMiniBucketCount = __builtin_popcountll(*fastCastFilter);
+            //     if(miniBucketIndex == 0) {
+            //         return std::make_pair(0, getKeyIndex(*fastCastFilter, miniBucketIndex));
+            //     }
+            //     else if (miniBucketIndex < segmentMiniBucketCount) {
+            //         return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*fastCastFilter, miniBucketIndex));
+            //     }
+            //     else if (miniBucketIndex == segmentMiniBucketCount) {
+            //         return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount) + 64 - segmentMiniBucketCount);
+            //     }
+            //     else {
+            //         return std::make_pair(getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount-1) + 64 - segmentMiniBucketCount, getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount) + 64 - segmentMiniBucketCount);
+            //     }
+            // }
+            else {
+                std::pair<std::size_t, std::size_t> keyIndices;
+                if(miniBucketIndex == 0) {
+                    keyIndices.first = 0;
+                }
+                for(size_t remainingBytes{NumBytes}, keysPassed{0}; remainingBytes > 0; remainingBytes-=8, fastCastFilter++) {
+                    uint64_t filterSegment = (*fastCastFilter);
+                    // if(remainingBytes < 8) {
+                    //     filterSegment = filterSegment & (~((1ull << (remainingBytes*8))- 1));
+                    // } //Should actually be unnecessary! But keeping this in to remind that this is technically accessing memory it may not be supposed to
+                    uint64_t segmentMiniBucketCount = __builtin_popcountll(filterSegment);
+                    if (miniBucketIndex != 0 && miniBucketIndex-1 < segmentMiniBucketCount) {
+                        keyIndices.first = keysPassed+getKeyIndex(filterSegment, miniBucketIndex-1);
+                    }
+                    if(miniBucketIndex < segmentMiniBucketCount) {
+                        keyIndices.second = keysPassed+getKeyIndex(filterSegment, miniBucketIndex);
+                        return keyIndices;
+                    }
+                    miniBucketIndex -= segmentMiniBucketCount;
+                    keysPassed += 64-segmentMiniBucketCount;
+                }
+                //Should not get here
+                return keyIndices;
+            }
         }
 
         // std::size_t queryMiniBucketBeginning(std::size_t miniBucketIndex) {
