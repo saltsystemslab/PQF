@@ -73,6 +73,52 @@ namespace DynamicPrefixFilter {
             return select(filterSegment, miniBucketSegmentIndex) - miniBucketSegmentIndex;
         }
 
+        std::size_t selectNoCtzll(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) {
+            return _pdep_u64(1ull << miniBucketSegmentIndex, filterSegment);
+        }
+
+        std::size_t getKeyMask(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) {
+            return selectNoCtzll(filterSegment, miniBucketSegmentIndex) >> miniBucketSegmentIndex;
+        }
+
+        std::pair<std::uint64_t, std::uint64_t> queryMiniBucketBoundsMask(std::size_t miniBucketIndex) {
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            if constexpr (NumBytes <= 8) {
+                if(miniBucketIndex == 0) {
+                    // return std::make_pair(0, getKeyIndex(*fastCastFilter, miniBucketIndex));
+                    return std::make_pair(1, getKeyMask(*fastCastFilter, miniBucketIndex));
+                }
+                else {
+                    // return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*fastCastFilter, miniBucketIndex));
+                    return std::make_pair(getKeyMask(*fastCastFilter, miniBucketIndex-1), getKeyMask(*fastCastFilter, miniBucketIndex));
+                }
+            }
+            else if (NumBytes <= 16 && NumKeys < 64) { //A bit sus implementation for now but should work?
+                uint64_t segmentMiniBucketCount = __builtin_popcountll(*fastCastFilter);
+                if(miniBucketIndex == 0) {
+                    return std::make_pair(1, getKeyMask(*fastCastFilter, miniBucketIndex));
+                }
+                else if (miniBucketIndex < segmentMiniBucketCount) {
+                    return std::make_pair(getKeyMask(*fastCastFilter, miniBucketIndex-1), getKeyMask(*fastCastFilter, miniBucketIndex));
+                }
+                else if (miniBucketIndex == segmentMiniBucketCount) {
+                    return std::make_pair(getKeyMask(*fastCastFilter, miniBucketIndex-1), (getKeyMask(*(fastCastFilter+1), miniBucketIndex - segmentMiniBucketCount) << (64 - segmentMiniBucketCount)));
+                    // return (getKeyMask(*fastCastFilter, miniBucketIndex - segmentMiniBucketCount) << (64 - segmentMiniBucketCount)) - getKeyMask(*fastCastFilter, miniBucketIndex-1);
+                    // return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount) + 64 - segmentMiniBucketCount);
+                }
+                else {
+                    return std::make_pair(getKeyMask(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount-1) << (64 - segmentMiniBucketCount), getKeyMask(*(fastCastFilter+1), miniBucketIndex - segmentMiniBucketCount) << (64 - segmentMiniBucketCount));
+                    // return ((getKeyMask(*fastCastFilter, miniBucketIndex - segmentMiniBucketCount)) - getKeyMask(*fastCastFilter, miniBucketIndex-segmentMiniBucketCount-1)) << (64 - segmentMiniBucketCount);
+                    // return std::make_pair(getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount-1) + 64 - segmentMiniBucketCount, getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount) + 64 - segmentMiniBucketCount);
+                }
+                // return std::make_pair(queryMiniBucketBeginning(miniBucketIndex), queryMiniBucketBeginning(miniBucketIndex+1));
+            }
+            else {
+                //FOR NOW NOT SUPPORTED
+                return std::pair<std::uint64_t, std::uint64_t>();
+            }
+        }
+
         //Returns a pair representing [start, end) of the minibucket. So basically miniBucketIndex to keyIndex conversion
         std::pair<std::size_t, std::size_t> queryMiniBucketBounds(std::size_t miniBucketIndex) {
             //Highly, sus, but whatever

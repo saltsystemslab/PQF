@@ -57,6 +57,15 @@ struct alignas(1) FakeBucket {
         });
     }
 
+    void checkQueryMask(size_t miniBucketIndex, pair<size_t, size_t> expectedBounds) {
+        basicFunctionTestWrapper([&] () -> void {
+            pair<uint64_t, uint64_t> boundsMask = filterBytes.queryMiniBucketBoundsMask(miniBucketIndex);
+            cout << "Expected bounds: " << expectedBounds.first << " " << expectedBounds.second << endl;
+            cout << "Got bounds: " << __builtin_ctzll(boundsMask.first) << " " << __builtin_ctzll(boundsMask.second) << endl;
+            assert(boundsMask.first == (1ull << expectedBounds.first) && boundsMask.second == (1ull << expectedBounds.second));
+        });
+    }
+
     pair<size_t, size_t> query(size_t miniBucketIndex) {
         return filterBytes.queryMiniBucketBounds(miniBucketIndex);
     }
@@ -146,6 +155,8 @@ void testBucket(mt19937& generator) {
     for(size_t miniBucketIndex{0}; miniBucketIndex < NumMiniBuckets; miniBucketIndex++) {
         pair<size_t, size_t> expectedBounds{minBound, maxBound};
         temp.checkQuery(miniBucketIndex, expectedBounds);
+        if(NumKeys < 64)
+            temp.checkQueryMask(miniBucketIndex, expectedBounds);
         minBound += sizeEachMiniBucket[miniBucketIndex];
         if (miniBucketIndex+1 < NumMiniBuckets) {
             maxBound += sizeEachMiniBucket[miniBucketIndex+1];

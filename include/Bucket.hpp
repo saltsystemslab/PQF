@@ -40,12 +40,14 @@ namespace DynamicPrefixFilter {
         //     }
         // }
         std::uint64_t query(TypeOfQRContainer qr) {
-            std::pair<size_t, size_t> bounds = miniFilter.queryMiniBucketBounds(qr.miniBucketIndex);
+            // std::pair<size_t, size_t> bounds = miniFilter.queryMiniBucketBounds(qr.miniBucketIndex);
+            std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
             // std::pair<size_t, size_t> bounds = std::make_pair(0, 5);
-            std::uint64_t inFilter = remainderStore.query(qr.remainder, bounds);
+            // std::uint64_t inFilter = remainderStore.query(qr.remainder, bounds);
+            std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
             if(inFilter != 0)
                 return 1;
-            else if (bounds.second == NumKeys) {
+            else if (boundsMask.second == (1ull << NumKeys)) {
                 return 2;
             }
             else {
