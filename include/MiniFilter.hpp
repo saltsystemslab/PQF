@@ -85,21 +85,22 @@ namespace DynamicPrefixFilter {
                     return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*fastCastFilter, miniBucketIndex));
                 }
             }
-            // else if (NumBytes <= 16 && NumKeys < 64) { //A bit sus implementation for now but should work?
-            //     uint64_t segmentMiniBucketCount = __builtin_popcountll(*fastCastFilter);
-            //     if(miniBucketIndex == 0) {
-            //         return std::make_pair(0, getKeyIndex(*fastCastFilter, miniBucketIndex));
-            //     }
-            //     else if (miniBucketIndex < segmentMiniBucketCount) {
-            //         return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*fastCastFilter, miniBucketIndex));
-            //     }
-            //     else if (miniBucketIndex == segmentMiniBucketCount) {
-            //         return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount) + 64 - segmentMiniBucketCount);
-            //     }
-            //     else {
-            //         return std::make_pair(getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount-1) + 64 - segmentMiniBucketCount, getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount) + 64 - segmentMiniBucketCount);
-            //     }
-            // }
+            else if (NumBytes <= 16 && NumKeys < 64) { //A bit sus implementation for now but should work?
+                uint64_t segmentMiniBucketCount = __builtin_popcountll(*fastCastFilter);
+                if(miniBucketIndex == 0) {
+                    return std::make_pair(0, getKeyIndex(*fastCastFilter, miniBucketIndex));
+                }
+                else if (miniBucketIndex < segmentMiniBucketCount) {
+                    return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*fastCastFilter, miniBucketIndex));
+                }
+                else if (miniBucketIndex == segmentMiniBucketCount) {
+                    return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex-1), getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount) + 64 - segmentMiniBucketCount);
+                }
+                else {
+                    return std::make_pair(getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount-1) + 64 - segmentMiniBucketCount, getKeyIndex(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount) + 64 - segmentMiniBucketCount);
+                }
+                // return std::make_pair(queryMiniBucketBeginning(miniBucketIndex), queryMiniBucketBeginning(miniBucketIndex+1));
+            }
             else {
                 std::pair<std::size_t, std::size_t> keyIndices;
                 if(miniBucketIndex == 0) {

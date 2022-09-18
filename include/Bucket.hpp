@@ -41,13 +41,20 @@ namespace DynamicPrefixFilter {
         // }
         std::uint64_t query(TypeOfQRContainer qr) {
             std::pair<size_t, size_t> bounds = miniFilter.queryMiniBucketBounds(qr.miniBucketIndex);
+            // std::pair<size_t, size_t> bounds = std::make_pair(0, 5);
             std::uint64_t inFilter = remainderStore.query(qr.remainder, bounds);
             if(inFilter != 0)
                 return 1;
-            else {
-                // return std::pair<bool, bool>(false, bounds.second == NumKeys && (bounds.first == NumKeys || remainderStore.queryOutOfBounds(qr.remainder)));
-                return (bounds.second == NumKeys) << 1;
+            else if (bounds.second == NumKeys) {
+                return 2;
             }
+            else {
+                return 0;
+            }
+            // else {
+            //     // return std::pair<bool, bool>(false, bounds.second == NumKeys && (bounds.first == NumKeys || remainderStore.queryOutOfBounds(qr.remainder)));
+            //     return (bounds.second == NumKeys) << 1;
+            // }
         }
 
         std::size_t countKeys() {

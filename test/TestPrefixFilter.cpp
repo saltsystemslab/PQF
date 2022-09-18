@@ -18,9 +18,11 @@ int main() {
     DynamicPrefixFilter8Bit pf(N);
 
     vector<size_t> keys(N);
+    vector<size_t> FPRkeys(N);
     uniform_int_distribution<size_t> keyDist(0, -1ull);
     for(size_t i{0}; i < N; i++) {
         keys[i] = keyDist(generator) % pf.range;
+        FPRkeys[i] = keyDist(generator) % pf.range;
     }
 
     auto start = chrono::high_resolution_clock::now();    
@@ -39,7 +41,8 @@ int main() {
     start = chrono::high_resolution_clock::now(); 
     for(size_t i{0}; i < N; i++) {
         // assert(pf.query(keys[i]).first);
-        assert(pf.query(keys[i]) & 1);
+        assert(pf.querySimple(keys[i]));
+        // pf.querySimple(keys[i]);
         // [[maybe_unused]] uint64_t x = pf.query(keys[i]) & 1;
     }
     end = chrono::high_resolution_clock::now();
@@ -47,10 +50,31 @@ int main() {
     ms = ((double)duration.count())/1000.0;
     cout << ms << " ms for positive queries" << endl;
 
+     start = chrono::high_resolution_clock::now();
+    uint64_t fpc = 0;
+    for(size_t i{0}; i < N; i++) {
+        // pair<bool, bool> qres = pf.query(keyDist(generator) % pf.range);
+        // if(qres.second) {
+        //     Nb++;
+        //     bpr += qres.first;
+        // }
+        // else {
+        //     Nf++;
+        //     fpr+=qres.first;
+        // }
+        [[maybe_unused]] uint64_t qres = pf.querySimple(FPRkeys[i]);
+        fpc+=qres & 1;
+    }
+    end = chrono::high_resolution_clock::now();
+    duration = chrono::duration_cast<chrono::microseconds>(end-start);
+    ms = ((double)duration.count())/1000.0;
+    cout << ms << " ms for random queries" << endl;
+    cout << "False positive rate: " << (((double)fpc)/N) << endl;
+
     start = chrono::high_resolution_clock::now();
-    double fpr = 0.0;
+    fpc = 0.0;
     double Nf = 0.0;
-    double bpr = 0.0;
+    uint64_t bpc = 0.0;
     double Nb = 0.0;
     for(size_t i{0}; i < N; i++) {
         // pair<bool, bool> qres = pf.query(keyDist(generator) % pf.range);
@@ -62,23 +86,23 @@ int main() {
         //     Nf++;
         //     fpr+=qres.first;
         // }
-        uint64_t qres = pf.query(keyDist(generator) % pf.range);
+        [[maybe_unused]] uint64_t qres = pf.query(FPRkeys[i]);
         if(qres & 2) {
             Nb++;
-            bpr += qres & 1;
+            bpc += qres & 1;
         }
         else {
             Nf++;
-            fpr+=qres & 1;
+            fpc+=qres & 1;
         }
     }
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);
     ms = ((double)duration.count())/1000.0;
     cout << ms << " ms for random queries" << endl;
-    double rfpr = (fpr+bpr)/N;
-    fpr/=Nf;
-    bpr/=Nb;
+    double rfpr = ((double)(fpc+bpc))/N;
+    double fpr = fpc / Nf;
+    double bpr = bpc / Nb;
     cout << "False positive rate: " << rfpr << ", " << fpr << ", " << bpr << endl;
 
 }

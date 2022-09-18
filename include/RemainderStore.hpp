@@ -256,13 +256,54 @@ namespace DynamicPrefixFilter {
             return retMask;
         }
 
+        //Resulting vector would have doubled elements of the array of remainders, so that we could then mask off one for the first 4 bit remainder and one for the second
+        static constexpr __m512i get4BitExpanderShuffle() {
+            std::array<unsigned char, 64> bytes;
+            for(size_t i=0; i < 64; i++) {
+                bytes[i] = (i/2) + Offset;
+            }
+            return std::bit_cast<__m512i>(bytes);
+        }
+        
+        static constexpr __m512i getDoublePackedStoreTernaryMask() {
+            std::array<unsigned char, 64> bytes;
+            for(size_t i=0; i < 64; i++) {
+                bytes[i] = 15 << ((i%2) * 4);
+            }
+            return std::bit_cast<__m512i>(bytes);
+        }
+
+        std::uint64_t queryVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+            __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+            // std::cout << "PackedStore:" <<std::endl;
+            // print_vec(packedStore, true, 8);
+            __m512i packedRemainder = _mm512_maskz_set1_epi8(_cvtu64_mask64(-1ull), remainder*17);
+            // std::cout << "PackedRemainder:" <<std::endl;
+            // print_vec(packedRemainder, true, 8);
+            static constexpr __m512i expanderShuffle = get4BitExpanderShuffle();
+            // std::cout << "ExpanderShuffle:" <<std::endl;
+            // print_vec(expanderShuffle, true, 8);
+            __m512i doubledPackedStore = _mm512_permutexvar_epi8(expanderShuffle, packedStore);
+            // std::cout << "DoubledPackedStore:" <<std::endl;
+            // print_vec(doubledPackedStore, true, 8);
+            __m512i maskedXNORedPackedStore = _mm512_ternarylogic_epi32(doubledPackedStore, packedRemainder, getDoublePackedStoreTernaryMask(), 0b00101000);
+            // std::cout << "DoublePackedStoreTernaryMask:" <<std::endl;
+            // print_vec(getDoublePackedStoreTernaryMask(), true, 8);
+            // std::cout << "maskedXNORedPackedStore:" <<std::endl;
+            // print_vec(maskedXNORedPackedStore, true, 8);
+            __mmask64 compared = _knot_mask64(_mm512_test_epi8_mask(maskedXNORedPackedStore, maskedXNORedPackedStore));
+            return _cvtmask64_u64(compared) & ((1ull << bounds.second) - (1ull << bounds.first));
+        }
+
         // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
         std::uint64_t query(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
             if constexpr (DEBUG) {
                 assert(remainder < 16);
                 assert(bounds.second <= NumRemainders);
             }
-            return queryNonVectorized(remainder, bounds);
+            // return queryNonVectorized(remainder, bounds);
+            return queryVectorized(remainder, bounds);
         }
     };
 

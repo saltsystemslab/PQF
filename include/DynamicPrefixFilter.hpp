@@ -40,6 +40,7 @@ namespace DynamicPrefixFilter {
             DynamicPrefixFilter8Bit(std::size_t N);
             void insert(std::uint64_t hash);
             std::uint64_t query(std::uint64_t hash);
+            bool querySimple(std::uint64_t hash);
             // double getAverageOverflow();
 
     };
