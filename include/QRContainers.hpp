@@ -33,20 +33,31 @@ namespace DynamicPrefixFilter {
         std::size_t bucketIndex;
         std::size_t miniBucketIndex;
         std::uint64_t remainder;
+        std::uint_fast8_t whichFrontyardBucket;
 
         void finishInit(std::uint64_t frontyardBucketIndex, bool hashNum, std::uint64_t rangeBuckets) {
             if (hashNum) {
-                remainder += (frontyardBucketIndex % ConsolidationFactor) << RemainderBits; //Division and remainder *should* be optimized to bit shift, but maybe just do that manually in the future to be sure
+                whichFrontyardBucket = (frontyardBucketIndex % ConsolidationFactor) + ConsolidationFactorP2;
+                if constexpr (DEBUG)
+                    assert(whichFrontyardBucket < 16);
+                // remainder += (frontyardBucketIndex % ConsolidationFactor) << RemainderBits; //Division and remainder *should* be optimized to bit shift, but maybe just do that manually in the future to be sure
                 bucketIndex = frontyardBucketIndex / ConsolidationFactor;
                 // std::cout << "fi " << remainder << std::endl;
-                remainder += (1ull << RemainderBits)*ConsolidationFactorP2; //to differentiate from 0 hash
+                // remainder += (1ull << RemainderBits)*ConsolidationFactorP2; //to differentiate from 0 hash
+                remainder += whichFrontyardBucket << RemainderBits;
                 // std::cout << remainder << std::endl;
             }
             else {
                 std::uint64_t fbiMinusLowBits = frontyardBucketIndex / ConsolidationFactor;
                 std::uint64_t lowBits = frontyardBucketIndex % ConsolidationFactor;
-                bucketIndex = fbiMinusLowBits/ConsolidationFactor + lowBits*(rangeBuckets/ConsolidationFactor/ConsolidationFactor);
-                remainder += (fbiMinusLowBits % ConsolidationFactor) << RemainderBits;
+                bucketIndex = fbiMinusLowBits/ConsolidationFactor + lowBits*(rangeBuckets/ConsolidationFactor/ConsolidationFactor+1);
+                whichFrontyardBucket = fbiMinusLowBits % ConsolidationFactor;
+                if constexpr (DEBUG) {
+                    assert(whichFrontyardBucket < ConsolidationFactorP2);
+                    assert(fbiMinusLowBits/ConsolidationFactor < rangeBuckets/ConsolidationFactor/ConsolidationFactor+1);
+                }
+                // remainder += (fbiMinusLowBits % ConsolidationFactor) << RemainderBits;
+                remainder += whichFrontyardBucket << RemainderBits;
             }
         }
 

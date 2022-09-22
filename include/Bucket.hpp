@@ -39,6 +39,7 @@ namespace DynamicPrefixFilter {
         //         return std::pair<bool, bool>(false, bounds.second == NumKeys);
         //     }
         // }
+        //Return 1 if found it, 2 if need to go to backyard, 0 if didn't find and don't need to go to backyard
         std::uint64_t query(TypeOfQRContainer qr) {
             // std::pair<size_t, size_t> bounds = miniFilter.queryMiniBucketBounds(qr.miniBucketIndex);
             std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
@@ -57,6 +58,40 @@ namespace DynamicPrefixFilter {
             //     // return std::pair<bool, bool>(false, bounds.second == NumKeys && (bounds.first == NumKeys || remainderStore.queryOutOfBounds(qr.remainder)));
             //     return (bounds.second == NumKeys) << 1;
             // }
+        }
+
+        // //Same as query: returns 1 if found (and deleted), 2 if need to go to backyard, 0 if didn't find and don't need to go to backyard (which really is an error case). Should we even have the error case?
+        // std::uint64_t delete(TypeOfQRContainer qr) {
+
+        // }
+
+        //Returns true if deleted, false if need to go to backyard (we assume that key exists, so we don't expect to not find it somewhere)
+        bool remove(TypeOfQRContainer qr) {
+            std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+            std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+            if(inFilter == 0) {
+                return false;
+            }
+            else {
+                std::uint64_t locFirstMatch = __builtin_ctzll(inFilter);
+                remainderStore.remove(locFirstMatch);
+                miniFilter.remove(qr.miniBucketIndex, locFirstMatch);
+                return true;
+            }
+        }
+
+        std::uint64_t remainderStoreRemoveReturn(std::uint64_t keyIndex, std::uint64_t miniBucketIndex) {
+            miniFilter.remove(miniBucketIndex, keyIndex);
+            return remainderStore.removeReturn(keyIndex);
+        }
+
+
+        std::size_t queryWhichMiniBucket(std::size_t keyIndex) {
+            return miniFilter.queryWhichMiniBucket(keyIndex);
+        }
+
+        bool full() {
+            return miniFilter.full();
         }
 
         std::size_t countKeys() {

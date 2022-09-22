@@ -48,6 +48,19 @@ struct alignas(1) FakeBucket {
         return retval;
     }
 
+    void remove(std::size_t miniBucketIndex, std::size_t keyIndex) {
+        basicFunctionTestWrapper([&] () -> void {
+            filterBytes.remove(miniBucketIndex, keyIndex);
+        });
+    }
+
+    void checkRemoveFirstElement(std::size_t expectedMiniBucketIndex) {
+        basicFunctionTestWrapper([&] () -> void {
+            std::size_t miniBucketIndex = filterBytes.removeFirstElement();
+            assert(miniBucketIndex == expectedMiniBucketIndex);
+        });
+    }
+
     void checkQuery(size_t miniBucketIndex, pair<size_t, size_t> expectedBounds) {
         basicFunctionTestWrapper([&] () -> void {
             pair<size_t, size_t> bounds = filterBytes.queryMiniBucketBounds(miniBucketIndex);
@@ -57,11 +70,19 @@ struct alignas(1) FakeBucket {
         });
     }
 
+    void checkQueryWhichMiniBucket(size_t keyIndex, size_t expectedMiniBucketIndex) {
+        basicFunctionTestWrapper([&] () -> void {
+            size_t miniBucketIndex = filterBytes.queryWhichMiniBucket(keyIndex);
+            // cout << miniBucketIndex << " " << expectedMiniBucketIndex << endl;
+            assert(miniBucketIndex == expectedMiniBucketIndex);
+        });
+    }
+
     void checkQueryMask(size_t miniBucketIndex, pair<size_t, size_t> expectedBounds) {
         basicFunctionTestWrapper([&] () -> void {
             pair<uint64_t, uint64_t> boundsMask = filterBytes.queryMiniBucketBoundsMask(miniBucketIndex);
-            cout << "Expected bounds: " << expectedBounds.first << " " << expectedBounds.second << endl;
-            cout << "Got bounds: " << __builtin_ctzll(boundsMask.first) << " " << __builtin_ctzll(boundsMask.second) << endl;
+            // cout << "Expected bounds: " << expectedBounds.first << " " << expectedBounds.second << endl;
+            // cout << "Got bounds: " << __builtin_ctzll(boundsMask.first) << " " << __builtin_ctzll(boundsMask.second) << endl;
             assert(boundsMask.first == (1ull << expectedBounds.first) && boundsMask.second == (1ull << expectedBounds.second));
         });
     }
@@ -166,6 +187,65 @@ void testBucket(mt19937& generator) {
         }
     }
     cout << "pass" << endl;
+
+    if(NumKeys+NumMiniBuckets <= 128) {
+        cout << "Testing if removing half and then adding another random half back in works" << endl;
+        //Removing half
+        for(size_t i{0}; i < NumKeys/2-1; i++) {
+            uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
+            size_t miniBucketIndex = miniBucketIndexDist(generator);
+            while(sizeEachMiniBucket[miniBucketIndex] == 0) miniBucketIndex = miniBucketIndexDist(generator);
+            size_t keyIndex = 0;
+            for(size_t j{0}; j < miniBucketIndex; j++) {
+                keyIndex += sizeEachMiniBucket[j];
+            }
+            temp.remove(miniBucketIndex, keyIndex);
+            temp.checkCount(NumKeys-i-1);
+            sizeEachMiniBucket[miniBucketIndex]--;
+        }
+
+        std::uint64_t indexFirst = 0;
+        for(; sizeEachMiniBucket[indexFirst] == 0; indexFirst++);
+        temp.checkRemoveFirstElement(indexFirst);
+        temp.checkCount(NumKeys-NumKeys/2);
+        sizeEachMiniBucket[indexFirst]--;
+
+        //Adding back another half
+        for(size_t i{0}; i < NumKeys/2; i++) {
+            uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
+            size_t miniBucketIndex = miniBucketIndexDist(generator);
+            size_t keyIndex = 0;
+            for(size_t j{0}; j < miniBucketIndex; j++) {
+                keyIndex += sizeEachMiniBucket[j];
+            }
+            assert(!temp.insert(miniBucketIndex, keyIndex).has_value());
+            temp.checkCount((NumKeys-NumKeys/2) + i + 1);
+            sizeEachMiniBucket[miniBucketIndex]++;
+        }
+
+        //Querying
+        minBound = 0;
+        maxBound = sizeEachMiniBucket[0];
+        for(size_t miniBucketIndex{0}; miniBucketIndex < NumMiniBuckets; miniBucketIndex++) {
+            pair<size_t, size_t> expectedBounds{minBound, maxBound};
+            temp.checkQuery(miniBucketIndex, expectedBounds);
+            if(NumKeys+NumMiniBuckets < 128) {
+                for(size_t k{expectedBounds.first}; k < expectedBounds.second; k++) {
+                    temp.checkQueryWhichMiniBucket(k, miniBucketIndex);
+                }
+            }
+            if(NumKeys < 64)
+                temp.checkQueryMask(miniBucketIndex, expectedBounds);
+            minBound += sizeEachMiniBucket[miniBucketIndex];
+            if (miniBucketIndex+1 < NumMiniBuckets) {
+                maxBound += sizeEachMiniBucket[miniBucketIndex+1];
+            }
+            else {
+                maxBound = NumKeys;
+            }
+        }
+        cout << "pass" << endl;
+    }
 
     cout << "Testing if overflow values are correct: ";
     temp = FakeBucket<NumKeys, NumMiniBuckets>(generator);

@@ -40,8 +40,11 @@ namespace DynamicPrefixFilter {
                 else if (i == loc+Offset) {
                     bytes[i] = 0;
                 }
-                else {
+                else if (i < Size+Offset){
                     bytes[i] = i-1;
+                }
+                else {
+                    bytes[i] = i;
                 }
             }
             return std::bit_cast<__m512i>(bytes);
@@ -55,7 +58,32 @@ namespace DynamicPrefixFilter {
             return masks;
         }
 
+        static constexpr __m512i getRemoveShuffleVector(std::size_t loc) {
+            std::array<unsigned char, 64> bytes;
+            for(size_t i=0; i < 64; i++) {
+                if (i < loc+Offset) {
+                    bytes[i] = i;
+                }
+                else if (i < Size+Offset){
+                    bytes[i] = i+1;
+                }
+                else {
+                    bytes[i] = i;
+                }
+            }
+            return std::bit_cast<__m512i>(bytes);
+        }
+
+        static constexpr std::array<m512iWrapper, 64> getRemoveShuffleVectors() {
+            std::array<m512iWrapper, 64> masks;
+            for(size_t i = 0; i < 64; i++) {
+                masks[i] = getRemoveShuffleVector(i);
+            }
+            return masks;
+        }
+
         static constexpr std::array<m512iWrapper, 64> shuffleVectors = getShuffleVectors();
+        static constexpr std::array<m512iWrapper, 64> removeShuffleVectors = getRemoveShuffleVectors();
 
         //loc is equivalent to bounds.first (or really anything in between bounds.first and bounds.second)
         //Much faster to not keep remainders ordered in a mini bucket, even though it slightly increases chance of needing to go to the backyard for a query
@@ -94,6 +122,26 @@ namespace DynamicPrefixFilter {
             _mm512_storeu_si512(nonOffsetAddr, packedStore);
 
             return retval;
+        }
+
+        void remove(std::size_t loc) {
+            __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+            packedStore = _mm512_mask_permutexvar_epi8(packedStore, StoreMask, removeShuffleVectors[loc], packedStore);
+            _mm512_storeu_si512(nonOffsetAddr, packedStore);
+        }
+
+        //Removes and returns the value that was there
+        std::uint_fast8_t removeReturn(std::size_t loc) {
+            std::uint_fast8_t retval = remainders[loc];
+            remove(loc);
+            return retval;
+        }
+
+        std::uint_fast8_t removeFirst() {
+            std::uint_fast8_t first = remainders[0];
+            remove(0);
+            return first;
         }
 
         // Original q: Should this even be vectorized really? Cause that would be more consistent, but probably slower on average since maxPossible-minPossible should be p small? Then again already overhead of working with bytes
@@ -239,13 +287,35 @@ namespace DynamicPrefixFilter {
             __m512i packedRemainders = _mm512_maskz_set1_epi8(_cvtu64_mask64(-1ull), remainderDoubledToFullByte);
             __m512i shuffleMoveRight = {7, 0, 1, 2, 3, 4, 5, 6};
             __m512i packedStoreShiftedRight = _mm512_permutexvar_epi64(shuffleMoveRight, packedStore);
-            __m512i packedStoreShiftedRight4Bits = _mm512_shldi_epi64(packedStore, packedStoreShiftedRight, 4);
+            __m512i packedStoreShiftedRight4Bits = _mm512_shldi_epi64(packedStore, packedStoreShiftedRight, 4); //Yes this says shldi which is left shift and well we are doing a left shift but that's in big endian, and well when I work with intrinsics I start thinking little endian.
             // __m512i newPackedStore = _mm512_ternarylogic_epi32(packedStoreShiftedRight4Bits, packedStore, getPackedStoreMask(loc), 0b11011000);
             __m512i newPackedStore = _mm512_ternarylogic_epi32(packedStoreShiftedRight4Bits, packedStore, packedStoreMasks[loc], 0b11011000);
             // newPackedStore = _mm512_ternarylogic_epi32(newPackedStore, packedRemainders, getRemainderStoreMask(loc), 0b11011000);
             newPackedStore = _mm512_ternarylogic_epi32(newPackedStore, packedRemainders, remainderStoreMasks[loc], 0b11011000);
             _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, newPackedStore));
             return retval;
+        }
+
+        void remove(std::size_t loc) {
+            __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+            __m512i shuffleMoveLeft = {1, 2, 3, 4, 5, 6, 7, 0};
+            __m512i packedStoreShiftedLeft = _mm512_permutexvar_epi64(shuffleMoveLeft, packedStore);
+            __m512i packedStoreShiftedLeft4Bits = _mm512_shrdi_epi64(packedStore, packedStoreShiftedLeft, 4);
+            __m512i newPackedStore = _mm512_ternarylogic_epi32(packedStoreShiftedLeft4Bits, packedStore, packedStoreMasks[loc], 0b11011000);
+            _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, newPackedStore));
+        }
+
+        std::uint_fast8_t removeReturn(std::size_t loc) {
+            std::uint_fast8_t retval = get4Bits(remainders[loc/2], loc%2);
+            remove(loc);
+            return retval;
+        }
+
+        std::uint_fast8_t removeFirst() {
+            std::uint_fast8_t first = get4Bits(remainders[0], 0);
+            remove(0);
+            return first;
         }
 
         // Original q: Should this even be vectorized really? Cause that would be more consistent, but probably slower on average since maxPossible-minPossible should be p small? Then again already overhead of working with bytes
@@ -338,7 +408,7 @@ namespace DynamicPrefixFilter {
         }
     };
 
-    //Oooooops I forgot about ordering so making a 12bit store out of 4 and 8 bit will be hard :(
+    //This filter stores 12 bits by using an 8 bit store and 4 bit store. It stores the lower 8 bits in the 8 bit store, and the higher order 4 bits in the 4 bit store.
     template<std::size_t NumRemainders, std::size_t Offset>
     struct alignas(1) RemainderStore12Bit {
         using Store4BitType = RemainderStore4Bit<NumRemainders, Offset>;
@@ -356,11 +426,24 @@ namespace DynamicPrefixFilter {
                 assert(loc <= NumRemainders);
             }
 
-            uint_fast8_t remainder8BitPart = remainder >> 4;
-            uint_fast8_t remainder4BitPart = remainder & 15;
+            // uint_fast8_t remainder8BitPart = remainder >> 4;
+            // uint_fast8_t remainder4BitPart = remainder & 15;
+            uint_fast8_t remainder8BitPart = remainder & 255;
+            uint_fast8_t remainder4BitPart = remainder >> 8;
             uint_fast16_t overflow = store8BitPart.insert(remainder8BitPart, loc) << 4ull;
             overflow |= store4BitPart.insert(remainder4BitPart, loc);
             return overflow;
+        }
+
+        void remove(std::size_t loc) {
+            store8BitPart.remove(loc);
+            store4BitPart.remove(loc);
+        }
+
+        std::uint_fast16_t removeReturn(std::size_t loc) {
+            uint_fast16_t retval8BitPart = store8BitPart.removeReturn(loc);
+            uint_fast16_t retval4BitPart = store4BitPart.removeReturn(loc);
+            return retval8BitPart + (retval4BitPart << 8);
         }
 
         std::uint64_t query(std::uint_fast16_t remainder, std::pair<size_t, size_t> bounds) {
@@ -369,10 +452,17 @@ namespace DynamicPrefixFilter {
                 assert(bounds.second <= NumRemainders);
             }
 
-            uint_fast8_t remainder8BitPart = remainder >> 4;
-            uint_fast8_t remainder4BitPart = remainder & 15;
+            // uint_fast8_t remainder8BitPart = remainder >> 4;
+            // uint_fast8_t remainder4BitPart = remainder & 15;
+            uint_fast8_t remainder8BitPart = remainder & 255;
+            uint_fast8_t remainder4BitPart = remainder >> 8;
 
             return store8BitPart.query(remainder8BitPart, bounds) & store4BitPart.query(remainder4BitPart, bounds);
+        }
+
+        //This is really just adhoc stuff to get the deletions to work, so that we find where the keys are that match the bucket we're coming from
+        std::uint64_t query4BitPartMask(std::uint_fast8_t bits, std::uint64_t mask) {
+            return store4BitPart.queryVectorizedMask(bits, mask);
         }
 
         std::uint64_t queryVectorizedMask(std::uint_fast16_t remainder, std::uint64_t mask) {
@@ -381,8 +471,10 @@ namespace DynamicPrefixFilter {
             //     assert(bounds.second <= NumRemainders);
             // }
 
-            uint_fast8_t remainder8BitPart = remainder >> 4;
-            uint_fast8_t remainder4BitPart = remainder & 15;
+            // uint_fast8_t remainder8BitPart = remainder >> 4;
+            // uint_fast8_t remainder4BitPart = remainder & 15;
+            uint_fast8_t remainder8BitPart = remainder & 255;
+            uint_fast8_t remainder4BitPart = remainder >> 8;
 
             return store8BitPart.queryVectorizedMask(remainder8BitPart, mask) & store4BitPart.queryVectorizedMask(remainder4BitPart, mask);
         }

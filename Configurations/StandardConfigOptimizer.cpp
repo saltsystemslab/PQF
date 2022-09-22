@@ -33,6 +33,8 @@ void calcMinCost(double cacheLineSize, double numKeysInCacheline) {
             double numFrontyardBucketsToOneBackyardBucket = min(floor((maxBackyardKeys-8)/expectedOverflow), maxFrontyardBucketsPerBackyardBucket);
             double costPerBackyardKey = backyardLineSize / (expectedOverflow*numFrontyardBucketsToOneBackyardBucket);
             double costPerKey = (costPerFrontyardKey*expectedKeysInFrontyardBucket+costPerBackyardKey*expectedOverflow)/miniFilterBuckets;
+            if (costPerKey < 12.549)
+                cout << costPerKey << " " << miniFilterBuckets << " " << maxBackyardKeys << " " << expectedOverflow << " " << numFrontyardBucketsToOneBackyardBucket << endl;
 
             if(costPerKey <= minCostPerKey) {
                 minCostPerKey = costPerKey;

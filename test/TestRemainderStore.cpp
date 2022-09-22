@@ -56,6 +56,18 @@ struct alignas(64) FakeBucket {
             assert(mask == expectedMask);
         });
     }
+
+    void remove(std::size_t loc) {
+        basicFunctionTestWrapper([&] () -> void {
+            remainderStore.remove(loc);
+        });
+    }
+
+    void checkRemoveReturn(std::size_t loc, std::uint64_t expectedReturn) {
+        basicFunctionTestWrapper([&] () -> void {
+            assert(expectedReturn == remainderStore.removeReturn(loc));
+        });
+    }
 };
 
 template<size_t NumKeys, size_t NumMiniBuckets, template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
@@ -66,34 +78,48 @@ void testBucket(mt19937& generator) {
     array<size_t, NumMiniBuckets> sizeEachMiniBucket{};
     // map<pair<size_t, uint64_t>, uint64_t> remToExpectedMask;
     set<pair<pair<size_t, size_t>, uint64_t>> remaindersForUnordered;
-    for(size_t i{0}; i < NumKeys*2; i++) {
+    for(size_t i{0}; i < NumKeys*3; i++) {
         // cout << "i is " << i << endl;
-        //Generate random data
-        uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
-        size_t miniBucketIndex = miniBucketIndexDist(generator);
-        uniform_int_distribution<uint64_t> remainderDist(0, (1ull << StoreTypeRemainderSize)-1);
-        uint64_t remainder = remainderDist(generator);
-        remaindersForUnordered.insert(make_pair(make_pair(miniBucketIndex, NumKeys*2-i), remainder)); //so that its ordered not by remainders in mini bucket but by time inserted in mini bucket
+        if(i < NumKeys*2) { //Testing insertions
+            //Generate random data
+            uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
+            size_t miniBucketIndex = miniBucketIndexDist(generator);
+            uniform_int_distribution<uint64_t> remainderDist(0, (1ull << StoreTypeRemainderSize)-1);
+            uint64_t remainder = remainderDist(generator);
+            remaindersForUnordered.insert(make_pair(make_pair(miniBucketIndex, NumKeys*2-i), remainder)); //so that its ordered not by remainders in mini bucket but by time inserted in mini bucket
 
-        //Test insertion
-        if(i >= NumKeys) {
-            // auto it = remToExpectedMask.begin();
-            // size_t countSmaller = 0;
-            // for(; it->first > make_pair(miniBucketIndex, remainder); it++, countSmaller++);
-            size_t insertLoc = 0;
-            auto it = remaindersForUnordered.begin();
-            auto expectedOverflow = *(remaindersForUnordered.rbegin());
-            for(; (it->first).first < miniBucketIndex; it++, insertLoc++);
-            testBucket.insert(remainder, insertLoc, {expectedOverflow.second});
-            remaindersForUnordered.erase(--remaindersForUnordered.end());
+            //Test insertion
+            if(i >= NumKeys) {
+                // auto it = remToExpectedMask.begin();
+                // size_t countSmaller = 0;
+                // for(; it->first > make_pair(miniBucketIndex, remainder); it++, countSmaller++);
+                size_t insertLoc = 0;
+                auto it = remaindersForUnordered.begin();
+                auto expectedOverflow = *(remaindersForUnordered.rbegin());
+                for(; (it->first).first < miniBucketIndex; it++, insertLoc++);
+                testBucket.insert(remainder, insertLoc, {expectedOverflow.second});
+                sizeEachMiniBucket[(remaindersForUnordered.rbegin())->first.first]--;
+                remaindersForUnordered.erase(--remaindersForUnordered.end());
+            }
+            else {
+                size_t insertLoc = 0;
+                auto it = remaindersForUnordered.begin();
+                for(; (it->first).first < miniBucketIndex; it++, insertLoc++);
+                testBucket.insert(remainder, insertLoc, {});
+            }
+            sizeEachMiniBucket[miniBucketIndex]++;
         }
-        else {
-            size_t insertLoc = 0;
+
+        else { //Testing removals
+            uniform_int_distribution<size_t> randomKeyDist(0, NumKeys*3-i-1);
+            size_t randomKeyIndex = randomKeyDist(generator);
             auto it = remaindersForUnordered.begin();
-            for(; (it->first).first < miniBucketIndex; it++, insertLoc++);
-            testBucket.insert(remainder, insertLoc, {});
+            for(size_t i{0}; i < randomKeyIndex; i++, it++);
+            sizeEachMiniBucket[it->first.first]--;
+            // testBucket.remove(randomKeyIndex);
+            testBucket.checkRemoveReturn(randomKeyIndex, it->second);
+            remaindersForUnordered.erase(it);
         }
-        sizeEachMiniBucket[miniBucketIndex]++;
 
         map<pair<size_t, uint64_t>, size_t> miniBucketRemainderCounts;
         auto it = remaindersForUnordered.begin();
