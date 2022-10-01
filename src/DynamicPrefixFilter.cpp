@@ -6,7 +6,15 @@
 
 using namespace DynamicPrefixFilter;
 
-DynamicPrefixFilter8Bit::DynamicPrefixFilter8Bit(std::size_t N): 
+// template class DynamicPrefixFilter8Bit<46, 51, 16, 8, 64, 32>; //These fail for obvious reasons, but I wanted to try anyways
+// template class DynamicPrefixFilter8Bit<46, 51, 16, 7, 64, 32>;
+template class DynamicPrefixFilter8Bit<46, 51, 35, 8, 64, 64>;
+template class DynamicPrefixFilter8Bit<48, 51, 35, 8, 64, 64>;
+template class DynamicPrefixFilter8Bit<51, 51, 35, 8, 64, 64>;
+template class DynamicPrefixFilter8Bit<22, 25, 17, 8, 32, 32>;
+
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::DynamicPrefixFilter8Bit(std::size_t N): 
     frontyard((N+BucketNumMiniBuckets-1)/BucketNumMiniBuckets),
     backyard((frontyard.size()+FrontyardToBackyardRatio-1)/FrontyardToBackyardRatio + FrontyardToBackyardRatio),
     // overflows(frontyard.size()),
@@ -14,13 +22,13 @@ DynamicPrefixFilter8Bit::DynamicPrefixFilter8Bit(std::size_t N):
     range{capacity*256}
 {}
 
-std::uint64_t DynamicPrefixFilter8Bit::sizeFilter() {
-    return (frontyard.size() + backyard.size()) * 64;
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+std::uint64_t DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::sizeFilter() {
+    return (frontyard.size()*sizeof(FrontyardBucketType)) + (backyard.size()*sizeof(BackyardBucketType));
 }
 
-DynamicPrefixFilter8Bit::FrontyardQRContainerType DynamicPrefixFilter8Bit::getQRPairFromHash(std::uint64_t hash) {
-    // return std::make_pair((hash >> 8) % capacity, hash & 255);
-    // return std::make_pair(hash >> 8, hash & 255);
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::FrontyardQRContainerType DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::getQRPairFromHash(std::uint64_t hash) {
     if constexpr (DEBUG) {
         FrontyardQRContainerType f = FrontyardQRContainerType(hash >> 8, hash & 255);
         assert(f.bucketIndex < frontyard.size());
@@ -31,9 +39,8 @@ DynamicPrefixFilter8Bit::FrontyardQRContainerType DynamicPrefixFilter8Bit::getQR
     return FrontyardQRContainerType(hash >> 8, hash & 255);
 }
 
-static std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> backyardToFrontyard;
-
-void DynamicPrefixFilter8Bit::insertOverflow(FrontyardQRContainerType overflow) {
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::insertOverflow(FrontyardQRContainerType overflow) {
     BackyardQRContainerType firstBackyardQR(overflow, 0, frontyard.size());
     BackyardQRContainerType secondBackyardQR(overflow, 1, frontyard.size());
     if constexpr (DEBUG) {
@@ -48,17 +55,16 @@ void DynamicPrefixFilter8Bit::insertOverflow(FrontyardQRContainerType overflow) 
     }
     std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
     std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
-    // std::cout << firstBackyardQR.bucketIndex << " " << secondBackyardQR.bucketIndex << " " << fillOfFirstBackyardBucket << " " << fillOfSecondBackyardBucket << std::endl;
     
     if(fillOfFirstBackyardBucket < fillOfSecondBackyardBucket) {
-        if constexpr (DEBUG)
+        if constexpr (PARTIAL_DEBUG || DEBUG)
             assert(backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull); //Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
         else 
             backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR);
         // assert(query(hash));
     }
     else {
-        if constexpr (DEBUG)
+        if constexpr (PARTIAL_DEBUG || DEBUG)
             assert(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull);
         else
             backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR);
@@ -66,14 +72,12 @@ void DynamicPrefixFilter8Bit::insertOverflow(FrontyardQRContainerType overflow) 
     }
 }
 
-void DynamicPrefixFilter8Bit::insert(std::uint64_t hash) {
-    // std::pair<std::uint64_t, std::uint64_t> qrPair = getQRPairFromHash(hash);
-    // FrontyardQRContainerType frontyardQR(qrPair.first, qrPair.second);
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::insert(std::uint64_t hash) {
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     FrontyardQRContainerType overflow = frontyard[frontyardQR.bucketIndex].insert(frontyardQR);
     if constexpr (DEBUG) {
-        assert((uint64_t)(&frontyard[frontyardQR.bucketIndex]) % 64 == 0);
-        assert(sizeof(frontyard[frontyardQR.bucketIndex]) == 64);
+        assert((uint64_t)(&frontyard[frontyardQR.bucketIndex]) % FrontyardBucketSize == 0);
     }
     if(overflow.miniBucketIndex != -1ull) {
         // overflows[frontyardQR.bucketIndex]++;
@@ -81,29 +85,10 @@ void DynamicPrefixFilter8Bit::insert(std::uint64_t hash) {
     }
 }
 
-// std::pair<bool, bool> DynamicPrefixFilter8Bit::query(std::uint64_t hash) {
-//     // std::pair<std::uint64_t, std::uint64_t> qrPair = getQRPairFromHash(hash);
-//     // FrontyardQRContainerType frontyardQR(qrPair.first, qrPair.second);
-//     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
-//     std::pair<bool, bool> frontyardQuery = frontyard[frontyardQR.bucketIndex].query(frontyardQR);
-//     if(frontyardQuery.first) return {true, false}; //found it in the frontyard
-//     if(!frontyardQuery.second) return {false, false}; //didn't find it in frontyard and don't need to go to backyard, so we done
-
-//     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, frontyard.size());
-//     BackyardQRContainerType secondBackyardQR(frontyardQR, 1, frontyard.size());
-//     return {backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR).first || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR).first, true}; //Return true if find it in either of the backyard buckets
-// }
-
-// static uint64_t XYZ = 0;
-
-std::uint64_t DynamicPrefixFilter8Bit::query(std::uint64_t hash) {
-    // std::pair<std::uint64_t, std::uint64_t> qrPair = getQRPairFromHash(hash);
-    // FrontyardQRContainerType frontyardQR(qrPair.first, qrPair.second);
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+std::uint64_t DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::queryWhere(std::uint64_t hash) {
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     std::uint64_t frontyardQuery = frontyard[frontyardQR.bucketIndex].query(frontyardQR);
-    // std::uint64_t frontyardQuery = (XYZ++) & 16;
-    // if(frontyardQuery.first) return 1; //found it in the frontyard
-    // if(!frontyardQuery.second) return 0; //didn't find it in frontyard and don't need to go to backyard, so we done
     if(frontyardQuery != 2) return frontyardQuery;
 
     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, frontyard.size());
@@ -112,14 +97,10 @@ std::uint64_t DynamicPrefixFilter8Bit::query(std::uint64_t hash) {
     return ((backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR) | backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR)) & 1) | 2;
 }
 
-bool DynamicPrefixFilter8Bit::querySimple(std::uint64_t hash) {
-    // std::pair<std::uint64_t, std::uint64_t> qrPair = getQRPairFromHash(hash);
-    // FrontyardQRContainerType frontyardQR(qrPair.first, qrPair.second);
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+bool DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::query(std::uint64_t hash) {
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     std::uint64_t frontyardQuery = frontyard[frontyardQR.bucketIndex].query(frontyardQR);
-    // std::uint64_t frontyardQuery = (XYZ++) & 16;
-    // if(frontyardQuery.first) return 1; //found it in the frontyard
-    // if(!frontyardQuery.second) return 0; //didn't find it in frontyard and don't need to go to backyard, so we done
     if(frontyardQuery != 2) return frontyardQuery;
 
     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, frontyard.size());
@@ -128,18 +109,16 @@ bool DynamicPrefixFilter8Bit::querySimple(std::uint64_t hash) {
     return backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR) || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR);
 }
 
-bool DynamicPrefixFilter8Bit::remove(std::uint64_t hash) {
-    assert(querySimple(hash));
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+bool DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::remove(std::uint64_t hash) {
+    if constexpr (DEBUG)
+        assert(query(hash));
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, frontyard.size());
     BackyardQRContainerType secondBackyardQR(frontyardQR, 1, frontyard.size());
     bool frontyardBucketFull = frontyard[frontyardQR.bucketIndex].full();
-    // std::cout << frontyardBucketFull << " c " << frontyard[frontyardQR.bucketIndex].countKeys() << std::endl;
     bool elementInFrontyard = frontyard[frontyardQR.bucketIndex].remove(frontyardQR);
     if(!frontyardBucketFull) {
-        // if(!elementInFrontyard) {
-        //     std::cout << "what?" << std::endl;
-        // }
         return elementInFrontyard;
     }
     else if (elementInFrontyard) { //In the case we removed it from the frontyard bucket, we need to bring back an element from the backyard (if there is one)
@@ -159,9 +138,6 @@ bool DynamicPrefixFilter8Bit::remove(std::uint64_t hash) {
         std::uint64_t firstMiniBucketBackyard = backyard[firstBackyardQR.bucketIndex].queryWhichMiniBucket(firstKeyBackyard);
         std::uint64_t secondMiniBucketBackyard = backyard[secondBackyardQR.bucketIndex].queryWhichMiniBucket(secondKeyBackyard);
         if constexpr (DEBUG) {
-            // std::cout << fillOfFirstBackyardBucket << " " << fillOfSecondBackyardBucket << std::endl;
-            // std::cout << frontyardQR.remainder << " " << frontyardQR.miniBucketIndex << std::endl;
-            // std::cout << "(" << firstKeyBackyard << ", " << firstMiniBucketBackyard << "); (" << secondKeyBackyard << ", " << secondMiniBucketBackyard << ")" << "; " << ((int)frontyard[frontyardQR.bucketIndex].queryWhichMiniBucket(FrontyardBucketCapacity-2)) << std::endl;
             assert(firstMiniBucketBackyard >= frontyard[frontyardQR.bucketIndex].queryWhichMiniBucket(FrontyardBucketCapacity-2) && secondMiniBucketBackyard >= frontyard[frontyardQR.bucketIndex].queryWhichMiniBucket(FrontyardBucketCapacity-2));
         }
         if(firstMiniBucketBackyard < secondMiniBucketBackyard) {
@@ -172,19 +148,14 @@ bool DynamicPrefixFilter8Bit::remove(std::uint64_t hash) {
             frontyardQR.miniBucketIndex = secondMiniBucketBackyard;
             frontyardQR.remainder = backyard[secondBackyardQR.bucketIndex].remainderStoreRemoveReturn(secondKeyBackyard, secondMiniBucketBackyard) & 255;
         }
-        if constexpr (DEBUG) {
-            // std::cout << frontyardQR.remainder << " " << frontyardQR.miniBucketIndex << std::endl;
-            // std::cout << "here" << std::endl;
-        }
         frontyard[frontyardQR.bucketIndex].insert(frontyardQR);
     }
     else {
         if (!backyard[firstBackyardQR.bucketIndex].remove(firstBackyardQR)) {
-            // return backyard[secondBackyardQR.bucketIndex].remove(secondBackyardQR);
-            if(!backyard[secondBackyardQR.bucketIndex].remove(secondBackyardQR)) {
-                // std::cout << "WAH" << std::endl;
-                return false;
-            }
+            return backyard[secondBackyardQR.bucketIndex].remove(secondBackyardQR);
+            // if(!backyard[secondBackyardQR.bucketIndex].remove(secondBackyardQR)) {
+            //     return false;
+            // }
         }
     }
     return true;
