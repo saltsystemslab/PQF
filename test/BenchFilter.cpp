@@ -151,7 +151,7 @@ class FilterTester {
                     avg.insertTime += testResults[i][test].insertTime * 1000.0; //convert to ns from us
                     avg.successfulQueryTime += testResults[i][test].successfulQueryTime * 1000.0;
                     avg.randomQueryTime += testResults[i][test].randomQueryTime * 1000.0;
-                    avg.falsePositiveRate += testResults[i][test].falsePositiveRate * 1000.0;
+                    avg.falsePositiveRate += testResults[i][test].falsePositiveRate;
                     avg.removeTime += testResults[i][test].removeTime * 1000.0;
                 }
                 avg.insertTime /= numTests * avg.N;
@@ -185,5 +185,5 @@ int main(int argc, char* argv[]) {
     ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N);});
     ft.addTest("DPF(22, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, N);});
 
-    ft.runAll(5);
+    ft.runAll(1);
 }
