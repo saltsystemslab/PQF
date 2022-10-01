@@ -27,24 +27,9 @@ namespace DynamicPrefixFilter {
             return qr;
         }
 
-        //First bool is for whether you found the key. If didn't find the key, second bool says whether you need to go to the backyard
-        //Obviously for the backyard bucket this doesn't make any sense, since we hope there will never be overflow (although it actually depends somewhat on the filter design!), but just ignore that second bool then
-        // std::pair<bool, bool> query(TypeOfQRContainer qr) {
-        //     std::pair<size_t, size_t> bounds = miniFilter.queryMiniBucketBounds(qr.miniBucketIndex);
-        //     std::uint64_t inFilter = remainderStore.query(qr.remainder, bounds);
-        //     if(inFilter != 0)
-        //         return std::pair<bool, bool>(true, false);
-        //     else {
-        //         // return std::pair<bool, bool>(false, bounds.second == NumKeys && (bounds.first == NumKeys || remainderStore.queryOutOfBounds(qr.remainder)));
-        //         return std::pair<bool, bool>(false, bounds.second == NumKeys);
-        //     }
-        // }
         //Return 1 if found it, 2 if need to go to backyard, 0 if didn't find and don't need to go to backyard
         std::uint64_t query(TypeOfQRContainer qr) {
-            // std::pair<size_t, size_t> bounds = miniFilter.queryMiniBucketBounds(qr.miniBucketIndex);
             std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
-            // std::pair<size_t, size_t> bounds = std::make_pair(0, 5);
-            // std::uint64_t inFilter = remainderStore.query(qr.remainder, bounds);
             std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
             if(inFilter != 0)
                 return 1;
@@ -54,16 +39,7 @@ namespace DynamicPrefixFilter {
             else {
                 return 0;
             }
-            // else {
-            //     // return std::pair<bool, bool>(false, bounds.second == NumKeys && (bounds.first == NumKeys || remainderStore.queryOutOfBounds(qr.remainder)));
-            //     return (bounds.second == NumKeys) << 1;
-            // }
         }
-
-        // //Same as query: returns 1 if found (and deleted), 2 if need to go to backyard, 0 if didn't find and don't need to go to backyard (which really is an error case). Should we even have the error case?
-        // std::uint64_t delete(TypeOfQRContainer qr) {
-
-        // }
 
         //Returns true if deleted, false if need to go to backyard (we assume that key exists, so we don't expect to not find it somewhere)
         bool remove(TypeOfQRContainer qr) {

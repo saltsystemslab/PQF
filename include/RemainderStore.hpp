@@ -85,35 +85,11 @@ namespace DynamicPrefixFilter {
         static constexpr std::array<m512iWrapper, 64> shuffleVectors = getShuffleVectors();
         static constexpr std::array<m512iWrapper, 64> removeShuffleVectors = getRemoveShuffleVectors();
 
-        //loc is equivalent to bounds.first (or really anything in between bounds.first and bounds.second)
-        //Much faster to not keep remainders ordered in a mini bucket, even though it slightly increases chance of needing to go to the backyard for a query
-        // std::uint_fast8_t insert(std::uint_fast8_t remainder, std::size_t loc) {
-        //     if constexpr (DEBUG) {
-        //         assert(loc <= NumRemainders);
-        //     }
-        //     if(loc == NumRemainders) return remainder;
-            
-        //     std::uint_fast8_t retval = remainders[NumRemainders-1];
-
-        //     __mmask64 insertingLocMask = _cvtu64_mask64(1ull << (loc + Offset));
-
-        //     __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
-        //     __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
-        //     __m512i packedRemainders = _mm512_maskz_set1_epi8(-1ull, remainder);
-        //     packedRemainders = _mm512_mask_expand_epi8(packedRemainders, _knot_mask64(insertingLocMask), packedStore);
-        //     // _mm512_storeu_si512(nonOffsetAddr, packedRemainders);
-        //     _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, packedRemainders)); //the mask blending shouldn't be necessary in our actual use case but whatever
-        //     // _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_expand_epi8(packedRemainders, _cvtu64_mask64(geMask), packedStore)); //the mask blending shouldn't be necessary so let's not
-        //     return retval;
-        // }
-
         std::uint_fast8_t insert(std::uint_fast8_t remainder, std::size_t loc) {
             if constexpr (DEBUG) {
                 assert(loc < NumRemainders);
             }
             std::uint_fast8_t retval = remainders[NumRemainders-1];
-            // if(__builtin_expect(loc == NumRemainders, 0)) return remainder; It is so crazy that commenting out this one line reduced throughput from 70 ns / ins to 57 ns/ins. It really doesn't make sense to me why. Like this wouldn't affect control flow at all (in the even slightly slower version I just changed it to change the value of retval rather than return, so that literally changed nothing about what is executed), and there is no data dependency between retval and stuff until several instructions later, so that should easily fit in the 17 cycle pipeline, but idk. I think it would be a really good exercise in understanding computer architecture to explain this
-            // std::uint_fast8_t retval = (loc == NumRemainders) ? remainder : remainders[NumRemainders-1];
 
             __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
             __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
@@ -225,22 +201,7 @@ namespace DynamicPrefixFilter {
 
         static constexpr std::array<m512iWrapper, 64> remainderStoreMasks = getRemainderStoreMasks();
 
-        // static const __m512i getPackedStoreMask(std::size_t loc) {
-        //     __m512i allOnes = _mm512_maskz_set1_epi8(_cvtu64_mask64((1ull << ((loc >> 1) + Offset)) - 1), (unsigned char)-1ull);
-        //     if (loc % 2 == 1){
-        //         __m512i fourBits = _mm512_maskz_set1_epi8(_cvtu64_mask64(1ull << ((loc >> 1) + Offset)), 15);
-        //         return (__m512i)_mm512_or_ps((__m512)allOnes, (__m512)fourBits);
-        //     }
-        //     return allOnes;
-        // }
-
         static constexpr __m512i getPackedStoreMask(std::size_t loc) {
-            // __m512i allOnes = _mm512_maskz_set1_epi8(_cvtu64_mask64((1ull << ((loc >> 1) + Offset)) - 1), (unsigned char)-1ull);
-            // if (loc % 2 == 1){
-            //     __m512i fourBits = _mm512_maskz_set1_epi8(_cvtu64_mask64(1ull << ((loc >> 1) + Offset)), 15);
-            //     return (__m512i)_mm512_or_ps((__m512)allOnes, (__m512)fourBits);
-            // }
-            // return allOnes;
             std::array<unsigned char, 64> bytes;
             for(size_t i=0; i < 64; i++) {
                 if(i < ((loc >> 1) + Offset)) {
@@ -268,7 +229,6 @@ namespace DynamicPrefixFilter {
 
         static void set4Bits(std::uint_fast8_t& byte, std::uint_fast8_t bitGroup, std::uint_fast8_t bits) {
             if constexpr (DEBUG) assert(bitGroup <= 1 && bits < 16);
-            // std::cout << "Setting 4 bits: " << (int)byte << " " << (int)bitGroup << " " << (int)bits << " ";
             byte = (byte & (0b1111 << ((1-bitGroup)*4))) + (bits << (bitGroup*4));
         }
 
@@ -288,9 +248,7 @@ namespace DynamicPrefixFilter {
             __m512i shuffleMoveRight = {7, 0, 1, 2, 3, 4, 5, 6};
             __m512i packedStoreShiftedRight = _mm512_permutexvar_epi64(shuffleMoveRight, packedStore);
             __m512i packedStoreShiftedRight4Bits = _mm512_shldi_epi64(packedStore, packedStoreShiftedRight, 4); //Yes this says shldi which is left shift and well we are doing a left shift but that's in big endian, and well when I work with intrinsics I start thinking little endian.
-            // __m512i newPackedStore = _mm512_ternarylogic_epi32(packedStoreShiftedRight4Bits, packedStore, getPackedStoreMask(loc), 0b11011000);
             __m512i newPackedStore = _mm512_ternarylogic_epi32(packedStoreShiftedRight4Bits, packedStore, packedStoreMasks[loc], 0b11011000);
-            // newPackedStore = _mm512_ternarylogic_epi32(newPackedStore, packedRemainders, getRemainderStoreMask(loc), 0b11011000);
             newPackedStore = _mm512_ternarylogic_epi32(newPackedStore, packedRemainders, remainderStoreMasks[loc], 0b11011000);
             _mm512_storeu_si512(nonOffsetAddr, _mm512_mask_blend_epi8(StoreMask, packedStore, newPackedStore));
             return retval;
@@ -323,14 +281,11 @@ namespace DynamicPrefixFilter {
         // Feels like def a good idea to vectorize now
         std::uint64_t queryNonVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
             std::uint64_t retMask = 0;
-            // std::cout << "Querying " << remainder << std::endl;
             for(size_t i{bounds.first}; i < bounds.second; i++) {
-                // std::cout << (int)get4Bits(remainders[i/2], i%2) << " ";
                 if(get4Bits(remainders[i/2], i%2) == remainder) {
                     retMask |= 1ull << i;
                 }assert(remainder < 16);
             }
-            // std::cout << std::endl;
             return retMask;
         }
 
@@ -354,22 +309,10 @@ namespace DynamicPrefixFilter {
         std::uint64_t queryVectorizedMask(std::uint_fast8_t remainder, std::uint64_t mask) {
             __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
             __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
-            // std::cout << "PackedStore:" <<std::endl;
-            // print_vec(packedStore, true, 8);
             __m512i packedRemainder = _mm512_maskz_set1_epi8(-1ull, remainder*17);
-            // std::cout << "PackedRemainder:" <<std::endl;
-            // print_vec(packedRemainder, true, 8);
             static constexpr __m512i expanderShuffle = get4BitExpanderShuffle();
-            // std::cout << "ExpanderShuffle:" <<std::endl;
-            // print_vec(expanderShuffle, true, 8);
             __m512i doubledPackedStore = _mm512_permutexvar_epi8(expanderShuffle, packedStore);
-            // std::cout << "DoubledPackedStore:" <<std::endl;
-            // print_vec(doubledPackedStore, true, 8);
             __m512i maskedXNORedPackedStore = _mm512_ternarylogic_epi32(doubledPackedStore, packedRemainder, getDoublePackedStoreTernaryMask(), 0b00101000);
-            // std::cout << "DoublePackedStoreTernaryMask:" <<std::endl;
-            // print_vec(getDoublePackedStoreTernaryMask(), true, 8);
-            // std::cout << "maskedXNORedPackedStore:" <<std::endl;
-            // print_vec(maskedXNORedPackedStore, true, 8);
             __mmask64 compared = _knot_mask64(_mm512_test_epi8_mask(maskedXNORedPackedStore, maskedXNORedPackedStore));
             return _cvtmask64_u64(compared) & mask;
         }
@@ -377,22 +320,10 @@ namespace DynamicPrefixFilter {
         std::uint64_t queryVectorized(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
             __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
             __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
-            // std::cout << "PackedStore:" <<std::endl;
-            // print_vec(packedStore, true, 8);
             __m512i packedRemainder = _mm512_maskz_set1_epi8(_cvtu64_mask64(-1ull), remainder*17);
-            // std::cout << "PackedRemainder:" <<std::endl;
-            // print_vec(packedRemainder, true, 8);
             static constexpr __m512i expanderShuffle = get4BitExpanderShuffle();
-            // std::cout << "ExpanderShuffle:" <<std::endl;
-            // print_vec(expanderShuffle, true, 8);
             __m512i doubledPackedStore = _mm512_permutexvar_epi8(expanderShuffle, packedStore);
-            // std::cout << "DoubledPackedStore:" <<std::endl;
-            // print_vec(doubledPackedStore, true, 8);
             __m512i maskedXNORedPackedStore = _mm512_ternarylogic_epi32(doubledPackedStore, packedRemainder, getDoublePackedStoreTernaryMask(), 0b00101000);
-            // std::cout << "DoublePackedStoreTernaryMask:" <<std::endl;
-            // print_vec(getDoublePackedStoreTernaryMask(), true, 8);
-            // std::cout << "maskedXNORedPackedStore:" <<std::endl;
-            // print_vec(maskedXNORedPackedStore, true, 8);
             __mmask64 compared = _knot_mask64(_mm512_test_epi8_mask(maskedXNORedPackedStore, maskedXNORedPackedStore));
             return _cvtmask64_u64(compared) & ((1ull << bounds.second) - (1ull << bounds.first));
         }
@@ -426,8 +357,6 @@ namespace DynamicPrefixFilter {
                 assert(loc <= NumRemainders);
             }
 
-            // uint_fast8_t remainder8BitPart = remainder >> 4;
-            // uint_fast8_t remainder4BitPart = remainder & 15;
             uint_fast8_t remainder8BitPart = remainder & 255;
             uint_fast8_t remainder4BitPart = remainder >> 8;
             uint_fast16_t overflow = store8BitPart.insert(remainder8BitPart, loc) << 4ull;
@@ -452,8 +381,6 @@ namespace DynamicPrefixFilter {
                 assert(bounds.second <= NumRemainders);
             }
 
-            // uint_fast8_t remainder8BitPart = remainder >> 4;
-            // uint_fast8_t remainder4BitPart = remainder & 15;
             uint_fast8_t remainder8BitPart = remainder & 255;
             uint_fast8_t remainder4BitPart = remainder >> 8;
 
@@ -466,13 +393,10 @@ namespace DynamicPrefixFilter {
         }
 
         std::uint64_t queryVectorizedMask(std::uint_fast16_t remainder, std::uint64_t mask) {
-            // if constexpr (DEBUG) {
-            //     assert(remainder <= 4095);
-            //     assert(bounds.second <= NumRemainders);
-            // }
+            if constexpr (DEBUG) {
+                assert(remainder <= 4095);
+            }
 
-            // uint_fast8_t remainder8BitPart = remainder >> 4;
-            // uint_fast8_t remainder4BitPart = remainder & 15;
             uint_fast8_t remainder8BitPart = remainder & 255;
             uint_fast8_t remainder4BitPart = remainder >> 8;
 

@@ -12,8 +12,8 @@ namespace DynamicPrefixFilter {
     class DynamicPrefixFilter8Bit {
         constexpr static std::size_t FrontyardBucketSize = 64;
         //Change the following two names? they're not consistent with the rest of everything, although I kind of want it to be different to differentiate global config from the local template param, so idk.
-        constexpr static std::size_t FrontyardBucketCapacity = 25; //number of actual remainders stored before overflow to backyard
-        constexpr static std::size_t BucketNumMiniBuckets = 22; //the average number of keys that we expect to actually go into the bucket
+        constexpr static std::size_t FrontyardBucketCapacity = 51; //number of actual remainders stored before overflow to backyard
+        constexpr static std::size_t BucketNumMiniBuckets = 48; //the average number of keys that we expect to actually go into the bucket
         //Set BucketNumMiniBuckets to:
             //51 to be space efficient (even 52 but that's even slower and cutting it a bit close with space overallocation to not fail)
             //49 to match 90% capacity VQF size -- roughly same speed for queries, faster for inserts
