@@ -1,0 +1,6 @@
+[submodule "test/Prefix-Filter"]
+	path = test/Prefix-Filter
+	url = https://github.com/TomerEven/Prefix-Filter
+[submodule "test/vqf"]
+	path = test/vqf
+	url = https://github.com/splatlab/vqf
