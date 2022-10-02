@@ -288,5 +288,5 @@ int main(int argc, char* argv[]) {
     ft.addTest("Prefix filter TC", [&] () -> TestResult {return benchFilter<PFWrapper, false>(generator, N, 1.0);});
     ft.addTest("Prefix filter TC 95\% Full", [&] () -> TestResult {return benchFilter<PFWrapper, false>(generator, N, 0.95);});
 
-    ft.runAll(10);
+    ft.runAll(3);
 }
