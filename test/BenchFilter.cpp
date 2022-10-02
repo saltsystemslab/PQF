@@ -61,7 +61,10 @@ TestResult benchFilter(mt19937 generator, size_t N, double ratio = 1.0, size_t d
 
     start = chrono::high_resolution_clock::now(); 
     for(size_t i{0}; i < N; i++) {
-        assert(filter.query(keys[i]));
+        if(!filter.query(keys[i])) {
+            cerr << "Query on " << keys[i] << " failed." << endl;
+            exit(EXIT_FAILURE);
+        }
     }
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);
@@ -132,7 +135,7 @@ class FilterTester {
             vector<ofstream> fileOutputs;
             for(string filterName: filterNames) {
                 fileOutputs.push_back(ofstream("results/all-data/" + filterName + ".csv"));
-                fileOutputs[fileOutputs.size()-1] << individualFilterHeader;
+                fileOutputs[fileOutputs.size()-1] << individualFilterHeader << endl;
             }
 
             this_thread::sleep_for(chrono::seconds(delayBetweenFilters));
@@ -282,7 +285,8 @@ int main(int argc, char* argv[]) {
     ft.addTest("DPF(22, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, N);});
     ft.addTest("VQF 85\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.85);});
     ft.addTest("VQF 90\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.90);});
-    ft.addTest("Prefix filter TC\% Full", [&] () -> TestResult {return benchFilter<PFWrapper, false>(generator, N, 1.0);});
+    ft.addTest("Prefix filter TC", [&] () -> TestResult {return benchFilter<PFWrapper, false>(generator, N, 1.0);});
+    ft.addTest("Prefix filter TC 95\% Full", [&] () -> TestResult {return benchFilter<PFWrapper, false>(generator, N, 0.95);});
 
-    ft.runAll(1);
+    ft.runAll(10);
 }
