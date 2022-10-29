@@ -20,6 +20,7 @@
 //This would also enable the dynamicprefixfilter to have a resolution of individual bits rather than bytes in terms of space usage, although that's less of a concern
 
 
+//miniBucket separators are 1s and keys are 0s
 //Todo: add offset here so that can put this at the end rather than the beginning of the filter. That actually seems to be the *better* memory configuration!
 namespace DynamicPrefixFilter {
     //You have to put the minifilter at the beginning of the bucket! Otherwise it may mess stuff up, since it does something admittedly kinda sus
@@ -351,6 +352,37 @@ namespace DynamicPrefixFilter {
                 assert(fastCastFilter >= (reinterpret_cast<uint64_t*> (&filterBytes)));
             }
             return (64 - _lzcnt_u64(segment)) + offset - NumMiniBuckets;
+        }
+
+        //Tells you if a mini bucket is at the very "end" of a filter. Basically, the point is to tell you if you need to go to the backyard.
+        bool miniBucketOutofFilterBounds(std::size_t miniBucket) {
+            uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes));
+            if constexpr (NumBytes <= 8) {
+                // std::size_t previousElementsMask = (~(((1ull<<NumKeys) << miniBucket) - 1)) & lastSegmentMask; //Basically, we want to see if there is a zero (meaning a key) after where the bucket should be if it is after all the keys
+                // return ((*fastCastFilter) & lastSegmentMask) >= previousElementsMask; //Works since each miniBucket is a one, so we test if t
+                std::size_t previousElementsMask = ((((-1ull)<<NumKeys) << miniBucket)) & lastSegmentMask;
+                return ((*fastCastFilter) & lastSegmentMask) >= previousElementsMask;
+
+                // 01000111. 00000100 -> 00000111 -> 01000111 >= 00000111
+            }
+        }
+
+        std::size_t checkMiniBucketKeyPair(std::size_t miniBucket, std::size_t keyBit) {
+            uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes));
+            if constexpr (NumBytes <= 8) {
+                std::size_t keyBucketLoc = keyBit << miniBucket;
+                std::size_t pcnt = __builtin_popcountll((keyBucketLoc-1) & (*fastCastFilter));
+                if (pcnt == miniBucket && (keyBucketLoc & (*fastCastFilter)) == 0) {
+                    return 1;
+                }
+                // else if (miniBucketOutofFilterBounds(miniBucket)){
+                //     return 2;
+                // }
+                else {
+                    return 0;
+                }
+                // else return 0;
+            }
         }
 
 

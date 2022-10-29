@@ -156,9 +156,12 @@ int main(int argc, char* argv[]) {
     // testLargeDPF<51, 51, 35, 8, 64, 64>(generator, N*8);
     // testLargeDPF<22, 25, 17, 8, 32, 32>(generator, N*8);
     
-    testDPF<46, 51, 35, 8, 64, 64>(generator, N);
-    testDPF<48, 51, 35, 8, 64, 64>(generator, N);
-    testDPF<51, 51, 35, 8, 64, 64>(generator, N);
-    testDPF<22, 25, 17, 8, 32, 32>(generator, N);
+    // testDPF<46, 51, 35, 8, 64, 64>(generator, N);
+    // testDPF<48, 51, 35, 8, 64, 64>(generator, N);
+    // testDPF<51, 51, 35, 8, 64, 64>(generator, N);
+    // testDPF<22, 25, 17, 8, 32, 32>(generator, N);
+    // testDPF<25, 25, 17, 4, 32, 32>(generator, N);
+    testDPF<25, 25, 17, 4, 32, 32>(generator, N);
+    // testDPF<25, 25, 17, 8, 32, 32>(generator, N);
 
 }

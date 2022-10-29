@@ -40,6 +40,140 @@ namespace DynamicPrefixFilter {
                 return 0;
             }
         }
+        
+        // std::uint64_t query(TypeOfQRContainer qr) {
+        //     if constexpr (NumKeys + NumMiniBuckets <= 64) {
+        //         // if(qr.miniBucketIndex > 0 && miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex-1)) return 2;
+        //         // else if (miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex)) {
+        //         //     std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //         //     std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+        //         //     if(inFilter != 0)
+        //         //         return 1;
+        //         //     else if (boundsMask.second == (1ull << NumKeys)) {
+        //         //         return 2;
+        //         //     }
+        //         //     else {
+        //         //         return 0;
+        //         //     }
+        //         // }
+        //         // else {
+        //         //     std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, (1ull << NumKeys) - 1);
+        //         //     if(inFilter == 0)
+        //         //         return 0;
+        //         //     else if ((inFilter & (inFilter-1)) == 0) {
+        //         //         return miniFilter.checkMiniBucketKeyPair(qr.miniBucketIndex, inFilter);
+        //         //     }
+        //         //     std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //         //     std::uint64_t boundsBitmask = boundsMask.second - boundsMask.first;
+        //         //     inFilter = boundsBitmask & inFilter;
+        //         //     if(inFilter != 0)
+        //         //         return 1;
+        //         //     else {
+        //         //         return 0;
+        //         //     }
+        //         // }
+        //         if(!miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex)) {
+        //             std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, (1ull << NumKeys) - 1);
+        //             if(inFilter == 0)
+        //                 return 0;
+        //             else if ((inFilter & (inFilter-1)) == 0) {
+        //                 return miniFilter.checkMiniBucketKeyPair(qr.miniBucketIndex, inFilter);
+        //             }
+        //             std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //             std::uint64_t boundsBitmask = boundsMask.second - boundsMask.first;
+        //             inFilter = boundsBitmask & inFilter;
+        //             if(inFilter != 0)
+        //                 return 1;
+        //             else {
+        //                 return 0;
+        //             }
+        //             // std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //             // std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+        //             // if(inFilter != 0)
+        //             //     return 1;
+        //             // // else if (boundsMask.second == (1ull << NumKeys)) {
+        //             // //     return 2;
+        //             // // }
+        //             // else {
+        //             //     return 0;
+        //             // }
+        //         }
+        //         // else {return 2;}
+        //         else if(qr.miniBucketIndex > 0 && miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex-1)) return 2;
+        //         else {
+        //             std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //             std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+        //             if(inFilter != 0)
+        //                 return 1;
+        //             else if (boundsMask.second == (1ull << NumKeys)) {
+        //                 return 2;
+        //             }
+        //             else {
+        //                 return 0;
+        //             }
+        //         }
+        //     }
+        //     // std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //     // std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+        //     // if(inFilter != 0)
+        //     //     return 1;
+        //     // else if (boundsMask.second == (1ull << NumKeys)) {
+        //     //     return 2;
+        //     // }
+        //     // else {ucketIndex > 0 && miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex-1)) return 2;
+        //         else {
+        //             std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //             std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+        //             if(inFilter != 0)
+        //                 return 1;
+        //             else if (boundsMask.second == (1ull << NumKeys)) {
+        //                 return 2;
+        //             }
+        //             else {
+        //                 return 0;
+        //             }
+        //         }
+        //     //     return 0;
+        //     // }
+        // }
+
+        // std::uint64_t query(TypeOfQRContainer qr) {
+        //     if constexpr (NumKeys + NumMiniBuckets <= 64) {
+        //         std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, (1ull << NumKeys) - 1);
+        //         if (inFilter == 0) {
+        //             if(miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex)) return 2;
+        //             else return 0;
+        //         }
+        //         else if((inFilter & (inFilter-1)) == 0) {
+        //             return miniFilter.checkMiniBucketKeyPair(qr.miniBucketIndex, inFilter);
+        //         }
+        //         else {
+        //             std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //             std::uint64_t boundsBitmask = boundsMask.second - boundsMask.first;
+        //             inFilter = boundsBitmask & inFilter;
+        //             if(inFilter != 0)
+        //                 return 1;
+        //             else if (boundsMask.second == (1ull << NumKeys)) {
+        //                 return 2;
+        //             }
+        //             else {
+        //                 return 0;
+        //             }
+        //         }
+        //     }
+        //     else {
+        //         std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+        //         std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+        //         if(inFilter != 0)
+        //             return 1;
+        //         else if (boundsMask.second == (1ull << NumKeys)) {
+        //             return 2;
+        //         }
+        //         else {
+        //             return 0;
+        //         }
+        //     }
+        // }
 
         //Returns true if deleted, false if need to go to backyard (we assume that key exists, so we don't expect to not find it somewhere)
         bool remove(TypeOfQRContainer qr) {

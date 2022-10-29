@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "-march=native")
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT supported OUTPUT error)
+
+
 set(DPF_FILES 
     src/DynamicPrefixFilter.cpp src/TestUtility include/Bucket.hpp include/DynamicPrefixFilter.hpp
     include/MiniFilter.hpp include/QRContainers.hpp include/RemainderStore)
@@ -39,6 +43,14 @@ set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
 #    test/vqf/include/vqf_filter.h test/vqf/include/vqf_precompute.h test/vqf/include/vqf_wrapper.h)
 
 add_executable(BenchFilter ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} test/BenchFilter.cpp)
+
+if( supported )
+    message(STATUS "IPO / LTO enabled")
+    set_property(TARGET BenchFilter PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    message(STATUS "IPO / LTO not supported: <${error}>")
+endif()
+
 target_compile_options(BenchFilter PRIVATE -O3 -DNDEBUG -Wall)
 target_link_libraries(BenchFilter PRIVATE vqf)
 target_include_directories(BenchFilter PUBLIC "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut")
