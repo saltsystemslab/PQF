@@ -327,7 +327,7 @@ int main(int argc, char* argv[]) {
         NumTests = atoi(argv[2]);
     }
     FilterTester ft;
-    constexpr size_t DelayBetweenTests = 0; //really should be like subtest
+    constexpr size_t DelayBetweenTests = 15; //really should be like subtest
     constexpr size_t DelayBetweenFilters = 0;
 
     // using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;

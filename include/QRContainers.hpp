@@ -35,7 +35,7 @@ namespace DynamicPrefixFilter {
         std::uint64_t remainder;
         std::uint_fast8_t whichFrontyardBucket;
 
-        void finishInit(std::uint64_t frontyardBucketIndex, bool hashNum, std::uint64_t rangeBuckets) {
+        void finishInit(std::uint64_t frontyardBucketIndex, bool hashNum, std::uint64_t R) {
             if (hashNum) {
                 whichFrontyardBucket = (frontyardBucketIndex % ConsolidationFactor) + ConsolidationFactorP2;
                 if constexpr (DEBUG)
@@ -48,26 +48,44 @@ namespace DynamicPrefixFilter {
                 // std::cout << remainder << std::endl;
             }
             else {
-                std::uint64_t fbiMinusLowBits = frontyardBucketIndex / ConsolidationFactor;
-                std::uint64_t lowBits = frontyardBucketIndex % ConsolidationFactor;
-                bucketIndex = fbiMinusLowBits/ConsolidationFactor + lowBits*(rangeBuckets/ConsolidationFactor/ConsolidationFactor+1);
-                whichFrontyardBucket = fbiMinusLowBits % ConsolidationFactor;
+                std::uint64_t fbiMinusLowBits = frontyardBucketIndex / ConsolidationFactor; // f2
+                std::uint64_t lowBits = frontyardBucketIndex % ConsolidationFactor; // l1
+                bucketIndex = fbiMinusLowBits/ConsolidationFactor + lowBits*R;
+                if (bucketIndex == fbiMinusLowBits) [[unlikely]] { //This case is the main problem!!! Should be uncommon so handling it should not use more time??
+                    // bucketIndex += rangeBuckets/ConsolidationFactor/ConsolidationFactor+1; //Shift over to the next one I guess is an idea.
+                    // whichFrontyardBucket = bucketIndex % ConsolidationFactor;
+                    // lowBits = (lowBits + 1)%8;
+                    // size_t R = rangeBuckets/ConsolidationFactor/ConsolidationFactor+1;
+                    // size_t g = R*lowBits/ConsolidationFactor + 1;
+                    // bucketIndex = g + lowBits*R;
+                    // whichFrontyardBucket = 
+                    size_t l1 = (lowBits + 1)%ConsolidationFactor;
+                    size_t f3 = l1*R/(ConsolidationFactor-1); //Should be right value? Cause l2 cannot be 7 since then l2 = 0 is also sol but l2 = 0 means that l1*R % (C-1) = 0 which then means that l1 = 0, as we set R so that it is *not* 0 mod ConsolidationFactor-1
+                    size_t l2 = l1*R - f3*(ConsolidationFactor-1);
+                    // size_t f2 = ConsolidationFactor*f3 + l2;
+                    bucketIndex = f3 + l1*R;
+                    whichFrontyardBucket = l2;
+                }
+                else {
+                    whichFrontyardBucket = fbiMinusLowBits % ConsolidationFactor;
+                }
+                // whichFrontyardBucket = fbiMinusLowBits % ConsolidationFactor;
                 if constexpr (DEBUG) {
                     assert(whichFrontyardBucket < ConsolidationFactorP2);
-                    assert(fbiMinusLowBits/ConsolidationFactor < rangeBuckets/ConsolidationFactor/ConsolidationFactor+1);
+                    assert(fbiMinusLowBits/ConsolidationFactor < R);
                 }
                 // remainder += (fbiMinusLowBits % ConsolidationFactor) << RemainderBits;
                 remainder += whichFrontyardBucket << RemainderBits;
             }
         }
 
-        BackyardQRContainer(std::size_t quotient, std::uint64_t remainder, bool hashNum, std::uint64_t rangeBuckets): /*quotient{quotient},*/ realRemainder{remainder}, miniBucketIndex{quotient%NumMiniBuckets}, remainder(remainder) {
+        BackyardQRContainer(std::size_t quotient, std::uint64_t remainder, bool hashNum, std::uint64_t R): /*quotient{quotient},*/ realRemainder{remainder}, miniBucketIndex{quotient%NumMiniBuckets}, remainder(remainder) {
             std::uint64_t frontyardBucketIndex = quotient/NumMiniBuckets;
-            finishInit(frontyardBucketIndex, hashNum, rangeBuckets);
+            finishInit(frontyardBucketIndex, hashNum, R);
         }
 
-        BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t rangeBuckets): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
-            finishInit(frontQR.bucketIndex, hashNum, rangeBuckets);
+        BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t R): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
+            finishInit(frontQR.bucketIndex, hashNum, R);
         }
     };
 

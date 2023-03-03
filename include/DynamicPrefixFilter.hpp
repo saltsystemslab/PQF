@@ -41,12 +41,19 @@ namespace DynamicPrefixFilter {
             
             std::vector<FrontyardBucketType> frontyard;
             std::vector<BackyardBucketType> backyard;
+            std::uint64_t R;
             std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> backyardToFrontyard; //Comment this out when done with testing I guess?
             // std::vector<size_t> overflows;
             FrontyardQRContainerType getQRPairFromHash(std::uint64_t hash);
             void insertOverflow(FrontyardQRContainerType overflow);
         
         public:
+            bool insertFailure = false;
+            std::size_t failureFB = 0;
+            std::size_t failureBucket1 = 0;
+            std::size_t failureBucket2 = 0;
+            std::size_t failureWFB = 0;
+
             std::size_t capacity;
             std::size_t range;
             DynamicPrefixFilter8Bit(std::size_t N);
@@ -55,6 +62,8 @@ namespace DynamicPrefixFilter {
             bool query(std::uint64_t hash);
             std::uint64_t sizeFilter();
             bool remove(std::uint64_t hash);
+
+            size_t getNumBuckets();
             // double getAverageOverflow();
 
     };
