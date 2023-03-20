@@ -21,6 +21,8 @@ using namespace std;
 
 struct TestResult { //Times are all in microseconds for running not one test but all (really just chosen arbitrarily like that)
     size_t N_Failure = -1ull;
+    double ratio;
+    size_t giveUpRatio;
     size_t failureBucket1;
     size_t failureBucket2;
     size_t sizeFilter;
@@ -32,15 +34,23 @@ struct TestResult { //Times are all in microseconds for running not one test but
 
 //max ratio is the ratio of how much space you make for filter items to how many items you actually insert
 template<typename FT, bool CanDelete = true>
-TestResult testInsertsUntilFull(mt19937& generator, size_t N_Filter) {
+TestResult testInsertsUntilFull(size_t N_Filter, double ratio, size_t giveUpRatio) {
+    // cout << ratio << endl;
     TestResult res;
     res.N_Filter = N_Filter;
+    res.ratio = ratio;
+    res.giveUpRatio = giveUpRatio;
 
     FT filter(N_Filter);
     res.sizeFilter = filter.sizeFilter();
 
-    size_t N = N_Filter*2; //if doesn't fail within 2x then idk what to say.
+    size_t N = N_Filter*giveUpRatio; //We restrict to failure within 100x of the size of the filter, as any more would be ridiculous.
+    size_t N_Ratio = (size_t) N_Filter * ratio;
     // vector<size_t> keys(N);
+    random_device rd;
+    uint32_t seed = rd();
+    mt19937 generator (seed); //do it here cause we want two generators
+    mt19937 generator2 (seed);
     uniform_int_distribution<size_t> keyDist(0, -1ull);
     // for(size_t i{0}; i < N; i++) {
     //     keys[i] = keyDist(generator) % filter.range;
@@ -58,15 +68,19 @@ TestResult testInsertsUntilFull(mt19937& generator, size_t N_Filter) {
             res.R = filter.getNumBuckets()/8/8 + 1;
             return res;
         }
+        if(i >= N_Ratio) {
+            size_t old_key = keyDist(generator2) % filter.range; //Should be the same as generator but since started later it is what generator outputted that while ago
+            filter.remove(key);
+        }
     }
 
     return res;
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
-TestResult testDPF(mt19937& generator, size_t N) {
+TestResult testDPF(size_t N, double r, size_t g) {
     using FilterType = DynamicPrefixFilter::DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>;
-    return testInsertsUntilFull<FilterType, true>(generator, N);
+    return testInsertsUntilFull<FilterType, true>(N, r, g);
 }
 
 class FilterTester {
@@ -86,12 +100,12 @@ class FilterTester {
         }
 
         void runOne(size_t i, size_t nt, string fs, TestResult& worstFailure) {
-            cout << fs << endl;
-            ofstream f{fs};
+            // cout << fs << endl;
+            ofstream f{fs, std::ios_base::app};
             for(size_t test{0}; test < nt; test++) {
                 // cout << test << " " << i << endl;
                 TestResult t = benchFunctions[i](Ns_Filter[i]);
-                f << t.N_Failure << " " << oct << t.failureBucket1 << " " << t.failureBucket2 << dec << '\n';
+                f << t.N_Failure << " " << t.ratio << " " << t.giveUpRatio << " " << oct << t.failureBucket1 << " " << t.failureBucket2 << dec << '\n';
                 if(t.N_Failure < worstFailure.N_Failure) {
                     worstFailure = t;
                 }
@@ -103,7 +117,7 @@ class FilterTester {
                 filesystem::create_directory("results");
             }
             
-            string folder = "results/FailureTest5/";
+            string folder = "results/InsertDeleteTest/";
 
             if(!filesystem::exists(folder)) { //Todo: look up how to do this recursively easily (or do it yourself)
                 filesystem::create_directory(folder);
@@ -150,16 +164,16 @@ class FilterTester {
                     }
                 }
 
-                cout << worstFailure.N_Failure << "," << worstFailure.failureFB << "," <<  worstFailure.failureBucket1 << "," << worstFailure.failureBucket2 << "," << worstFailure.failureWFB << "," << worstFailure.R << endl;
-                fout << worstFailure.N_Failure << "," << worstFailure.failureFB << "," <<  worstFailure.failureBucket1 << "," << worstFailure.failureBucket2 << "," << worstFailure.failureWFB << "," << worstFailure.R << endl;
+                cout << worstFailure.N_Failure << "," << worstFailure.ratio << "," << worstFailure.failureFB << "," <<  worstFailure.failureBucket1 << "," << worstFailure.failureBucket2 << "," << worstFailure.failureWFB << "," << worstFailure.R << endl;
+                fout << worstFailure.N_Failure << "," << worstFailure.ratio << "," << worstFailure.failureFB << "," <<  worstFailure.failureBucket1 << "," << worstFailure.failureBucket2 << "," << worstFailure.failureWFB << "," << worstFailure.R << endl;
             }
             
         }
 };
 
 int main(int argc, char* argv[]) {
-    random_device rd;
-    mt19937 generator (rd());
+    // random_device rd;
+    // mt19937 generator (rd());
 
     // size_t N_Filter = 1ull << 26;
     // if(argc > 1) {
@@ -170,20 +184,18 @@ int main(int argc, char* argv[]) {
     //     NumTests = atoi(argv[2]);
     // }
     FilterTester ft;
+
+    vector<double> ratios{0.95, 1.0, 1.05, 1.10};
     
     for(size_t logN = 15; logN <= 26; logN++) {
-        ft.addTest("DPF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 10000);
-        // ft.addTest("DPF_23_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testDPF<23, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("Matched_VQF_85_46_51_35_8_64_64",[&] (size_t N_Filter) -> TestResult {return testDPF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("Matched_VQF_90_49_51_35_8_64_64",[&] (size_t N_Filter) -> TestResult {return testDPF<49, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
-    }
-    for(size_t logN = 27; logN <= 30; logN++) {
-        ft.addTest("DPF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 1000);
+        for(double r: ratios)
+            ft.addTest("DPF_22_25_17_8_32_32", [&, r] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(N_Filter, r, 100);}, 1ull << logN, 1000);
     }
 
-    for(size_t logN = 31; logN <= 33; logN++) {
-        ft.addTest("DPF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 50);
+    for(size_t logN = 15; logN <= 20; logN++) {
+        for(double r: ratios)
+            ft.addTest("DPF_22_25_17_8_32_32", [&, r] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(N_Filter, r, 100000);}, 1ull << logN, 100);
     }
 
-    ft.runAll(NumTests, 2);
+    ft.runAll(NumTests, 8);
 }

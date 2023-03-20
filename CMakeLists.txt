@@ -44,12 +44,14 @@ set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
 
 add_executable(BenchFilter ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} test/BenchFilter.cpp)
 add_executable(FailureAsymptoticsTest ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} test/FailureAsymptoticsTest.cpp)
+add_executable(InsertDeleteTest ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} test/InsertDeleteTest.cpp)
 add_executable(TestPrefixFilter ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} test/TestPrefixFilter.cpp)
 
 if( supported )
     message(STATUS "IPO / LTO enabled")
     set_property(TARGET BenchFilter PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
     set_property(TARGET FailureAsymptoticsTest PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_property(TARGET InsertDeleteTest PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 else()
     message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
@@ -60,6 +62,9 @@ target_include_directories(BenchFilter PUBLIC "include" "test/vqf/include" "test
 target_compile_options(FailureAsymptoticsTest PRIVATE -O3 -DNDEBUG -Wall)
 target_link_libraries(FailureAsymptoticsTest PRIVATE vqf)
 target_include_directories(FailureAsymptoticsTest PUBLIC "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut")
+target_compile_options(InsertDeleteTest PRIVATE -O3 -DNDEBUG -Wall)
+target_link_libraries(InsertDeleteTest PRIVATE vqf)
+target_include_directories(InsertDeleteTest PUBLIC "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut")
 
 target_compile_options(TestPrefixFilter PRIVATE -O3 -Wall)
 target_include_directories(TestPrefixFilter PUBLIC "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut")
