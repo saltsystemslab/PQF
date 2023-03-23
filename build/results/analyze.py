@@ -28,11 +28,15 @@ import matplotlib.pyplot as plt
 
 Ns, FailureMin, FailureMedians, Failure1Percent = (list(t) for t in zip(*sorted(zip(Ns, FailureMin, FailureMedians, Failure1Percent))))
 
+# colors = {0.95: "blue", 1.0: "green", 1.05: "red", 1.10: "orange"}
+
 fig, ax = plt.subplots()
-# ax.plot(Ns, FailureMedians)
-# ax.plot(Ns, Failure1Percent)
+ax.plot(Ns, FailureMedians)
+plt.savefig("median.png")
+fig, ax = plt.subplots()
+ax.plot(Ns, Failure1Percent)
+plt.savefig("1pct.png")
+fig, ax = plt.subplots()
 ax.plot(Ns, FailureMin)
-# plt.savefig("median.png")
-# plt.savefig("1pct.png")
 plt.savefig("min.png")
 

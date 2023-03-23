@@ -103,7 +103,7 @@ class FilterTester {
                 filesystem::create_directory("results");
             }
             
-            string folder = "results/FailureTest5/";
+            string folder = "results/FailureTestNewHash/";
 
             if(!filesystem::exists(folder)) { //Todo: look up how to do this recursively easily (or do it yourself)
                 filesystem::create_directory(folder);
@@ -185,5 +185,5 @@ int main(int argc, char* argv[]) {
         ft.addTest("DPF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 50);
     }
 
-    ft.runAll(NumTests, 2);
+    ft.runAll(NumTests, 8);
 }

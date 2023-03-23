@@ -51,7 +51,7 @@ namespace DynamicPrefixFilter {
                 std::uint64_t fbiMinusLowBits = frontyardBucketIndex / ConsolidationFactor; // f2
                 std::uint64_t lowBits = frontyardBucketIndex % ConsolidationFactor; // l1
                 bucketIndex = fbiMinusLowBits/ConsolidationFactor + lowBits*R;
-                if (bucketIndex == fbiMinusLowBits) [[unlikely]] { //This case is the main problem!!! Should be uncommon so handling it should not use more time??
+                if (NEW_HASH && bucketIndex == fbiMinusLowBits) [[unlikely]] { //This case is the main problem!!! Should be uncommon so handling it should not use more time??
                     // bucketIndex += rangeBuckets/ConsolidationFactor/ConsolidationFactor+1; //Shift over to the next one I guess is an idea.
                     // whichFrontyardBucket = bucketIndex % ConsolidationFactor;
                     // lowBits = (lowBits + 1)%8;
