@@ -38,9 +38,9 @@ namespace DynamicPrefixFilter {
             using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, 8, FrontyardToBackyardRatio>;
             using BackyardBucketType = Bucket<BackyardBucketCapacity, BucketNumMiniBuckets, RemainderStore12Bit, WrappedBackyardQRContainerType, BackyardBucketSize>;
             static_assert(sizeof(BackyardBucketType) == BackyardBucketSize);
+
+            static constexpr double NormalizingFactor = (double)FrontyardBucketCapacity / (double) BucketNumMiniBuckets * (double)(1+FrontyardToBackyardRatio)/(FrontyardToBackyardRatio);
             
-            std::vector<FrontyardBucketType> frontyard;
-            std::vector<BackyardBucketType> backyard;
             std::uint64_t R;
             std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> backyardToFrontyard; //Comment this out when done with testing I guess?
             // std::vector<size_t> overflows;
@@ -54,9 +54,10 @@ namespace DynamicPrefixFilter {
             std::size_t failureBucket2 = 0;
             std::size_t failureWFB = 0;
 
+            // std::size_t normalizedCapacity;
             std::size_t capacity;
             std::size_t range;
-            DynamicPrefixFilter8Bit(std::size_t N);
+            DynamicPrefixFilter8Bit(std::size_t N, bool Normalize = true);
             void insert(std::uint64_t hash);
             std::uint64_t queryWhere(std::uint64_t hash); //also queries where the item is (backyard or frontyard)
             bool query(std::uint64_t hash);
@@ -65,6 +66,10 @@ namespace DynamicPrefixFilter {
 
             size_t getNumBuckets();
             // double getAverageOverflow();
+        
+        private:
+            std::vector<FrontyardBucketType> frontyard;
+            std::vector<BackyardBucketType> backyard;
 
     };
 }
