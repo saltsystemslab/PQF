@@ -109,7 +109,7 @@ class FilterTester {
                 filesystem::create_directory("results");
             }
             
-            string folder = "results/FailureTestAll/Test2Normalized/";
+            string folder = "results/FailureTestAll/Test3NormalizedOldHash/";
 
             if(!filesystem::exists(folder)) { //Todo: look up how to do this recursively easily (or do it yourself)
                 filesystem::create_directory(folder);
@@ -323,8 +323,8 @@ int main(int argc, char* argv[]) {
     // }
     FilterTester ft;
     
-    for(size_t logN = 15; logN <= 28; logN++) {
-    // for(size_t logN = 27; logN <= 28; logN++) {
+    for(size_t logN = 15; logN <= 26; logN++) {
+    // for(size_t logN = 28; logN <= 28; logN++) {
         ft.addTest("DPF_22-8", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
         ft.addTest("DPF_22-6", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 6, 32, 32>(generator, N_Filter);}, 1ull << logN);
         ft.addTest("DPF_22-4", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
@@ -361,5 +361,5 @@ int main(int argc, char* argv[]) {
     //     ft.addTest("Matched_VQF_85_46_51_35_8_64_64", [&] (size_t N_Filter) -> TestResult {return testDPF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN, 50);
     // }
 
-    ft.runAll(NumTests, 8);
+    ft.runAll(NumTests, 31);
 }

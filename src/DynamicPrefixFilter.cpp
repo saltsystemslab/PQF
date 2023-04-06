@@ -34,7 +34,7 @@ template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, 
 DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>::DynamicPrefixFilter8Bit(std::size_t N, bool Normalize): 
     capacity{Normalize ? static_cast<size_t>(N/NormalizingFactor) : N},
     range{capacity*256},
-    frontyard((N+BucketNumMiniBuckets-1)/BucketNumMiniBuckets),
+    frontyard((capacity+BucketNumMiniBuckets-1)/BucketNumMiniBuckets),
     backyard((frontyard.size()+FrontyardToBackyardRatio-1)/FrontyardToBackyardRatio + FrontyardToBackyardRatio*2)
     // overflows(frontyard.size()),
 {

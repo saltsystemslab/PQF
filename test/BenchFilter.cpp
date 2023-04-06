@@ -21,25 +21,29 @@
 using namespace std;
 
 struct TestResult { //Times are all in microseconds for running not one test but all (really just chosen arbitrarily like that)
-    double insertTime;
-    double successfulQueryTime;
-    double randomQueryTime;
+    size_t insertTime;
+    size_t successfulQueryTime;
+    size_t randomQueryTime;
     double falsePositiveRate;
-    double removeTime;
-    double ratio;
+    size_t removeTime;
+    double lf;
     size_t sizeFilter;
     size_t N;
+    size_t NFilter;
 };
 
 //max ratio is the ratio of how much space you make for filter items to how many items you actually insert
 template<typename FT, bool CanDelete = true>
-TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayBetweenTests) {
+TestResult benchFilter(mt19937& generator, size_t N, double ratio) {
     TestResult res;
-    res.N = N;
-    res.ratio = ratio;
+    res.N = static_cast<size_t>(N*ratio);
+    res.NFilter = N;
+    res.lf = ratio;
 
-    FT filter(N / ratio);
+    FT filter(res.NFilter);
     res.sizeFilter = filter.sizeFilter();
+
+    N = res.N;
 
     vector<size_t> keys(N);
     vector<size_t> FPRkeys(N);
@@ -48,32 +52,36 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayB
         keys[i] = keyDist(generator) % filter.range;
         FPRkeys[i] = keyDist(generator) % filter.range;
     }
-    this_thread::sleep_for(chrono::seconds(delayBetweenTests)); //Just sleep to try to keep turbo boost to full
+    // this_thread::sleep_for(chrono::seconds(delayBetweenTests)); //Just sleep to try to keep turbo boost to full
 
 
     auto start = chrono::high_resolution_clock::now();
     for(size_t i{0}; i < N; i++) {
         filter.insert(keys[i]);
+
     }
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end-start);
-    res.insertTime = (double)duration.count();
-    this_thread::sleep_for(chrono::seconds(delayBetweenTests));
+    res.insertTime = (size_t)duration.count();
+    // this_thread::sleep_for(chrono::seconds(delayBetweenTests));
 
     start = chrono::high_resolution_clock::now(); 
     // uint64_t x = 0;
     for(size_t i{0}; i < N; i++) {
         if(!filter.query(keys[i])) {
-            cerr << "Query on " << keys[i] << " failed." << endl;
-            exit(EXIT_FAILURE);
+            // cerr << "Query on " << keys[i] << " failed." << endl;
+            // exit(EXIT_FAILURE);
+            cout << ratio << endl;
+            res.successfulQueryTime = -1ull;
+            return res;
         }
         // x += filter.query(keys[i]);
     }
     // cout << x << endl;
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);
-    res.successfulQueryTime = (double)duration.count();
-    this_thread::sleep_for(chrono::seconds(delayBetweenTests));
+    res.successfulQueryTime = (size_t)duration.count();
+    // this_thread::sleep_for(chrono::seconds(delayBetweenTests));
 
     start = chrono::high_resolution_clock::now();
     uint64_t fpr = 0;
@@ -82,9 +90,9 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayB
     }
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);
-    res.randomQueryTime = (double)duration.count();
+    res.randomQueryTime = (size_t)duration.count();
     res.falsePositiveRate = ((double)fpr) / N;
-    this_thread::sleep_for(chrono::seconds(delayBetweenTests));
+    // this_thread::sleep_for(chrono::seconds(delayBetweenTests));
 
     if constexpr (CanDelete) {
         start = chrono::high_resolution_clock::now();
@@ -94,24 +102,26 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayB
         }
         end = chrono::high_resolution_clock::now();
         duration = chrono::duration_cast<chrono::microseconds>(end-start);
-        res.removeTime = (double)duration.count();
+        res.removeTime = (size_t)duration.count();
     }
     else {
-        res.removeTime = numeric_limits<double>::infinity();
+        // res.removeTime = numeric_limits<double>::infinity();
+        res.removeTime = -1ull;
     }
 
     return res;
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
-TestResult benchDPF(mt19937& generator, size_t N, size_t delayBetweenTests) {
+TestResult benchDPF(mt19937& generator, size_t N, double ratio = 1.0) {
     using FilterType = DynamicPrefixFilter::DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>;
-    return benchFilter<FilterType, true>(generator, N, 1.0, delayBetweenTests);
+    return benchFilter<FilterType, true>(generator, N, ratio);
 }
 
 class FilterTester {
     vector<string> filterNames;
     vector<function<TestResult()>> benchFunctions;
+    vector<size_t> Ns;
 
     vector<vector<TestResult>> testResults;
     string individualFilterHeader = "N, \"Size of Filter\", \"Insert Time\", \"Positive Query Time\", \"Random Query Time\", \"False Positive Rate\", \"Remove Time\""; //Idk why doing it this way but here we report how long total to insert, and in summary we say how much per item
@@ -121,66 +131,99 @@ class FilterTester {
     public: 
         FilterTester(){}
 
-        void addTest(string filterName, function<TestResult()> benchFunction) {
-            filterNames.push_back("\"" + filterName + "\"");
+        void addTest(string filterName, function<TestResult()> benchFunction, size_t N) {
+            filterNames.push_back(filterName);
             benchFunctions.push_back(benchFunction);
             testResults.push_back(vector<TestResult>());
+            Ns.push_back(N);
         }
 
-        void runAll(size_t numTests, size_t delayBetweenFilters) { //Delay refers to time we wait after calling the bench function for a filter in order to wait for turbo to "reset"
+        void addLoadFactors(string filterName, function<TestResult(double)> f, size_t N, double minLF, double maxLF, double step) {
+            for(double lf = minLF; lf <= maxLF+1e-9; lf+=step) {
+                // filterNames.push_back(filterName);
+                // benchFunctions.push_back([=]() -> TestResult {return f(lf);});
+                // testResults.push_back(vector<TestResult>());
+                addTest(filterName, [=]() -> TestResult {return f(lf);}, N);
+            }
+        }
+
+        void runAll(size_t numTests, mt19937 generator, string ofolder) {
             if(!filesystem::exists("results")) {
                 filesystem::create_directory("results");
             }
 
-            if(!filesystem::exists("results/all-data")) {
-                filesystem::create_directory("results/all-data");
+            string folder = "results/" + ofolder;
+
+            if(!filesystem::exists(folder)) {
+                filesystem::create_directory(folder);
             }
 
-            vector<ofstream> fileOutputs;
-            for(string filterName: filterNames) {
-                fileOutputs.push_back(ofstream("results/all-data/" + filterName + ".csv"));
-                fileOutputs[fileOutputs.size()-1] << individualFilterHeader << endl;
+            // vector<ofstream> fileOutputs;
+            // for(string filterName: filterNames) {
+            for(size_t i=0; i < filterNames.size(); i++){
+                string filterName = filterNames[i];
+                string bfolder = folder + "/" + filterName+"/";
+                if(!filesystem::exists(bfolder)) {
+                    filesystem::create_directory(bfolder);
+                }
+                // fileOutputs.push_back(ofstream(bfolder+to_string(Ns[i])));
+                // fileOutputs[fileOutputs.size()-1] << individualFilterHeader << endl;
+                ofstream fout(bfolder+to_string(Ns[i]));//lazy way to empty the file
             }
 
-            this_thread::sleep_for(chrono::seconds(delayBetweenFilters));
+            // this_thread::sleep_for(chrono::seconds(delayBetweenFilters));
 
             for(size_t test{0}; test < numTests; test++) {
-                for(size_t i{0}; i < benchFunctions.size(); i++) {
+                
+                //Randomize order just in case that does something
+                vector<size_t> order(benchFunctions.size());
+                for(size_t i{0}; i < order.size(); i++) order[i] = i;
+                shuffle(order.begin(), order.end(), generator);
+
+                for(size_t c{0}; c < benchFunctions.size(); c++) {
+                    size_t i = order[c];
+
+                    string filterName = filterNames[i];
+                    string bfolder = folder + "/" + filterName+"/";
+                    ofstream fout(bfolder+to_string(Ns[i]), std::ios_base::app);
+                    
                     cout << test << " " << i << endl;
-                    testResults[i].push_back(benchFunctions[i]());
-                    fileOutputs[i] << testResults[i][test].N << "," << testResults[i][test].sizeFilter << "," << testResults[i][test].insertTime << "," << testResults[i][test].successfulQueryTime << "," << testResults[i][test].randomQueryTime << "," << testResults[i][test].falsePositiveRate << "," << testResults[i][test].removeTime << endl;
-                    this_thread::sleep_for(chrono::seconds(delayBetweenFilters));
+                    TestResult t = benchFunctions[i]();
+                    // testResults[i].push_back();
+                    fout << t.lf << " " << t.insertTime << " " << t.successfulQueryTime << " " << t.randomQueryTime << " " << t.removeTime << " " << t.falsePositiveRate << " " << t.sizeFilter << "\n";
+                    // fileOutputs[i] << testResults[i][test].N << "," << testResults[i][test].sizeFilter << "," << testResults[i][test].insertTime << "," << testResults[i][test].successfulQueryTime << "," << testResults[i][test].randomQueryTime << "," << testResults[i][test].falsePositiveRate << "," << testResults[i][test].removeTime << endl;
+                    // this_thread::sleep_for(chrono::seconds(delayBetweenFilters));
                 }
             }
 
-            ofstream summaryOut("results/summary.csv");
-            summaryOut << summaryHeader << endl;
-            // cout << "Writing results" << endl;
-            for(size_t i{0}; i < filterNames.size(); i++) {
-                TestResult avg = {0};
-                summaryOut << filterNames[i] << ",";
-                avg.N = testResults[i][0].N;
-                summaryOut << avg.N << ",";
-                avg.sizeFilter = testResults[i][0].sizeFilter;
-                for(size_t test{0}; test < numTests; test++) {
-                    avg.insertTime += testResults[i][test].insertTime * 1000.0; //convert to ns from us
-                    avg.successfulQueryTime += testResults[i][test].successfulQueryTime * 1000.0;
-                    avg.randomQueryTime += testResults[i][test].randomQueryTime * 1000.0;
-                    avg.falsePositiveRate += testResults[i][test].falsePositiveRate;
-                    avg.removeTime += testResults[i][test].removeTime * 1000.0;
-                }
-                avg.insertTime /= numTests * avg.N;
-                summaryOut << avg.insertTime << ",";
-                avg.successfulQueryTime /= numTests * avg.N;
-                summaryOut << avg.successfulQueryTime << ",";
-                avg.randomQueryTime /= numTests * avg.N;
-                summaryOut << avg.randomQueryTime << ",";
-                avg.falsePositiveRate /= numTests;
-                summaryOut << (1.0/avg.falsePositiveRate) << ",";
-                avg.removeTime /= numTests * avg.N;
-                summaryOut << avg.removeTime << ",";
-                summaryOut << ((double)avg.sizeFilter * 8.0 / avg.N) << endl;
-            }
+            // ofstream summaryOut("results/summary.csv");
+            // summaryOut << summaryHeader << endl;
+            // // cout << "Writing results" << endl;
+            // for(size_t i{0}; i < filterNames.size(); i++) {
+            //     TestResult avg = {0};
+            //     summaryOut << filterNames[i] << ",";
+            //     avg.N = testResults[i][0].N;
+            //     summaryOut << avg.N << ",";
+            //     avg.sizeFilter = testResults[i][0].sizeFilter;
+            //     for(size_t test{0}; test < numTests; test++) {
+            //         avg.insertTime += testResults[i][test].insertTime * 1000.0; //convert to ns from us
+            //         avg.successfulQueryTime += testResults[i][test].successfulQueryTime * 1000.0;
+            //         avg.randomQueryTime += testResults[i][test].randomQueryTime * 1000.0;
+            //         avg.falsePositiveRate += testResults[i][test].falsePositiveRate;
+            //         avg.removeTime += testResults[i][test].removeTime * 1000.0;
+            //     }
+            //     avg.insertTime /= numTests * avg.N;
+            //     summaryOut << avg.insertTime << ",";
+            //     avg.successfulQueryTime /= numTests * avg.N;
+            //     summaryOut << avg.successfulQueryTime << ",";
+            //     avg.randomQueryTime /= numTests * avg.N;
+            //     summaryOut << avg.randomQueryTime << ",";
+            //     avg.falsePositiveRate /= numTests;
+            //     summaryOut << (1.0/avg.falsePositiveRate) << ",";
+            //     avg.removeTime /= numTests * avg.N;
+            //     summaryOut << avg.removeTime << ",";
+            //     summaryOut << ((double)avg.sizeFilter * 8.0 / avg.N) << endl;
+            // }
             
         }
 
@@ -314,21 +357,28 @@ class PFFilterAPIWrapper {
         }
 };
 
+// template<typename FT, bool CanDelete = true>
+// function<TestResult(double)> glf(mt19937& generator) {
+//     return [&] (size_t N_Filter) -> TestResult {return benchFilter<FT, CanDelete>(generator, N_Filter);}
+// }
+
 int main(int argc, char* argv[]) {
     random_device rd;
     mt19937 generator (rd());
 
-    size_t N = 1ull << 30;
-    if(argc > 1) {
-        N = (1ull << atoi(argv[1]));
-    }
-    size_t NumTests = 1;
+    // size_t N = 1ull << 30;
+    // size_t logN = 28;
+    // if(argc > 1) {
+    //     logN = atoi(argv[1]);
+    // }
+    size_t NumTests = 5;
     if(argc > 2){
         NumTests = atoi(argv[2]);
     }
     FilterTester ft;
-    constexpr size_t DelayBetweenTests = 15; //really should be like subtest
-    constexpr size_t DelayBetweenFilters = 0;
+    string ofolder = "LoadFactorPerformanceTest";
+    // constexpr size_t DelayBetweenTests = 15; //really should be like subtest
+    // constexpr size_t DelayBetweenFilters = 0;
 
     // using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
     // ft.addTest("Prefix filter TC", [&] () -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
@@ -355,13 +405,53 @@ int main(int argc, char* argv[]) {
     // ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, N);});
     // ft.addTest("DPF(23, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(24, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(24, 25, 17, 6, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 6, 32, 32>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(25, 25, 17, 4, 32, 32)", [&] () -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, N, DelayBetweenTests);});
-    // ft.addTest("VQF 85\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.85, DelayBetweenTests);});
+    // // ft.addTest("VQF 85\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.85, DelayBetweenTests);});
     // ft.addTest("VQF 90\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.90, DelayBetweenTests);});
 
-    ft.runAll(NumTests, DelayBetweenFilters);
+    for(size_t logN = 20; logN <= 28; logN+=4){
+        FilterTester ft;
+
+        ft.addLoadFactors("DPF_22-8", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_22-6", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 6, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_22-4", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_23-8", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_23-4", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_25-8", [&] (double lf) -> TestResult {return benchDPF<25, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_25-4", [&] (double lf) -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_46-8", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_46-6", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_46-4", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 4, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_51-8", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_51-6", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_52-8", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+
+        ft.addLoadFactors("VQF", [&] (double lf) -> TestResult {return benchFilter<VQFWrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+
+
+        using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
+        ft.addLoadFactors("PF-TC", [&] (double lf) -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+
+        using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+        using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
+        ft.addLoadFactors("PF-CF12F", [&] (double lf) -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+
+        using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+        ft.addLoadFactors("PF-BBFF", [&] (double lf) -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+
+        using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
+        ft.addLoadFactors("TC", [&] (double lf) -> TestResult {return benchFilter<TC_Wrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+
+        using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
+        ft.addLoadFactors("CF-12-Flex", [&] (double lf) -> TestResult {return benchFilter<CFF12_Wrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+
+        using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
+        ft.addLoadFactors("BBF-Flex", [&] (double lf) -> TestResult {return benchFilter<BBFF_Wrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        
+        ft.runAll(NumTests, generator, ofolder);
+    }
 }
