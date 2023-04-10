@@ -365,6 +365,16 @@ namespace DynamicPrefixFilter {
 
                 // 01000111. 00000100 -> 00000111 -> 01000111 >= 00000111
             }
+            else if (NumBytes <= 16) {
+                if (NumKeys + miniBucket >= 64) {
+                    std::size_t previousElementsMask = (((-1ull)<<(NumKeys + miniBucket - 64))) & lastSegmentMask;
+                    return ((*(fastCastFilter+1)) & lastSegmentMask) >= previousElementsMask;
+                }
+                else {
+                    return false; //Technically wrong but we'll say that it is very unlikely. However maybe need to fix this!!
+                }
+            }
+            return true;
         }
 
         std::size_t checkMiniBucketKeyPair(std::size_t miniBucket, std::size_t keyBit) {
@@ -383,6 +393,7 @@ namespace DynamicPrefixFilter {
                 }
                 // else return 0;
             }
+            return 0; //should not get here
         }
 
 

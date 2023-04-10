@@ -8,7 +8,7 @@
 namespace DynamicPrefixFilter {
     //Maybe have a bit set to if the bucket is not overflowed? Cause right now the bucket may send you to the backyard even if there is nothing in the backyard, but the bucket is just full. Not that big a deal, but this slight optimization might be worth a bit?
     //Like maybe have one extra key in the minifilter and then basically account for that or smth? Not sure.
-    template<std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t, std::size_t> typename TypeOfRemainderStoreTemplate, template<std::size_t> typename TypeOfQRContainerTemplate, std::size_t Size=64>
+    template<std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t, std::size_t> typename TypeOfRemainderStoreTemplate, template<std::size_t> typename TypeOfQRContainerTemplate, std::size_t Size=64, bool FastSQuery = false>
     struct alignas(Size) Bucket {
         using TypeOfMiniFilter = MiniFilter<NumKeys, NumMiniBuckets>;
         TypeOfMiniFilter miniFilter;
@@ -29,15 +29,54 @@ namespace DynamicPrefixFilter {
 
         //Return 1 if found it, 2 if need to go to backyard, 0 if didn't find and don't need to go to backyard
         std::uint64_t query(TypeOfQRContainer qr) {
-            std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
-            std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
-            if(inFilter != 0)
-                return 1;
-            else if (boundsMask.second == (1ull << NumKeys)) {
-                return 2;
+            if constexpr (!FastSQuery) {
+                std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+                std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+                if(inFilter != 0)
+                    return 1;
+                else if (boundsMask.second == (1ull << NumKeys)) {
+                    return 2;
+                }
+                else {
+                    return 0;
+                }
             }
             else {
-                return 0;
+                if (!full() || !miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex)) {
+                    // std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+                    std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, -1ull);
+                    if(inFilter == 0) {
+                        return 0;
+                    }
+                    else if (NumKeys + NumMiniBuckets <= 64 && (inFilter & (inFilter-1)) == 0) {
+                        return miniFilter.checkMiniBucketKeyPair(qr.miniBucketIndex, inFilter);
+                    }
+                    else {
+                        std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+                        inFilter &= boundsMask.second - boundsMask.first;
+                        if(inFilter != 0)
+                            return 1;
+                        // else if (boundsMask.second == (1ull << NumKeys)) {
+                        //     return 2;
+                        // }
+                        else {
+                            return 0;
+                        }
+                    }
+                }
+                else {
+                    std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+                    std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+                    if(inFilter != 0)
+                        return 1;
+                    // else if (boundsMask.second == (1ull << NumKeys)) {
+                    else {
+                        return 2;
+                    }
+                    // else {
+                    //     return 0;
+                    // }
+                }
             }
         }
         
