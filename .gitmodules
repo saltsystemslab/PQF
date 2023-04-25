@@ -4,3 +4,9 @@
 [submodule "test/vqf"]
 	path = test/vqf
 	url = https://github.com/splatlab/vqf
+[submodule "test/cuckoofilter"]
+	path = test/cuckoofilter
+	url = https://github.com/efficient/cuckoofilter.git
+[submodule "test/morton_filter"]
+	path = test/morton_filter
+	url = https://github.com/AMDComputeLibraries/morton_filter.git

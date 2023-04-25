@@ -60,10 +60,13 @@ namespace DynamicPrefixFilter {
             std::size_t range;
             DynamicPrefixFilter8Bit(std::size_t N, bool Normalize = true);
             void insert(std::uint64_t hash);
+            void insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys); //Really lazy and not super optimized implementation just to show that morton filters can easily be beaten
             std::uint64_t queryWhere(std::uint64_t hash); //also queries where the item is (backyard or frontyard)
             bool query(std::uint64_t hash);
+            void queryBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys);
             std::uint64_t sizeFilter();
             bool remove(std::uint64_t hash);
+            void removeBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys);
 
             size_t getNumBuckets();
             // double getAverageOverflow();

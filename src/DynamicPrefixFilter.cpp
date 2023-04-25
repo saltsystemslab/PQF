@@ -129,6 +129,17 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
+void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
+    for (size_t i=0; i < num_keys; i++) {
+        FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
+        // __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+    }
+    for(size_t i=0; i < num_keys; i++) {
+        insert(hashes[i]);
+    }
+}
+
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
 std::uint64_t DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::queryWhere(std::uint64_t hash) {
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     std::uint64_t frontyardQuery = frontyard[frontyardQR.bucketIndex].query(frontyardQR);
@@ -160,6 +171,17 @@ bool DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
     BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
     // return (backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR).first || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR).first) | 2; //Return true if find it in either of the backyard buckets
     return backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR) || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR);
+}
+
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
+void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::queryBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
+    for (size_t i=0; i < num_keys; i++) {
+        FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
+        // __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+    }
+    for(size_t i=0; i < num_keys; i++) {
+        status[i] = query(hashes[i]);
+    }
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
@@ -212,6 +234,17 @@ bool DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
         }
     }
     return true;
+}
+
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
+void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::removeBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
+    for (size_t i=0; i < num_keys; i++) {
+        FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
+        // __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+    }
+    for(size_t i=0; i < num_keys; i++) {
+        status[i] = remove(hashes[i]);
+    }
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>

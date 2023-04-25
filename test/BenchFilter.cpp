@@ -12,11 +12,7 @@
 #include <algorithm>
 
 #include "DynamicPrefixFilter.hpp"
-#include "vqf_filter.h"
-#include "wrappers.hpp"
-#include "min_pd256.hpp"
-#include "tc-sym.hpp"
-#include "TC-shortcut.hpp"
+#include "TestWrappers.hpp"
 
 using namespace std;
 
@@ -35,7 +31,7 @@ struct TestResult { //Times are all in microseconds for running not one test but
 };
 
 //max ratio is the ratio of how much space you make for filter items to how many items you actually insert
-template<typename FT, bool CanDelete = true, bool getBLR = false>
+template<typename FT, bool CanDelete = true, bool getBLR = false, bool testBatch=false>
 TestResult benchFilter(mt19937& generator, size_t N, double ratio) {
     TestResult res;
     res.N = static_cast<size_t>(N*ratio);
@@ -49,6 +45,9 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio) {
 
     vector<size_t> keys(N);
     vector<size_t> FPRkeys(N);
+    constexpr size_t batchSize = 128;
+    vector<size_t> batch(batchSize);
+    vector<bool> status(batchSize);
     uniform_int_distribution<size_t> keyDist(0, -1ull);
     for(size_t i{0}; i < N; i++) {
         keys[i] = keyDist(generator) % filter.range;
@@ -58,30 +57,54 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio) {
 
 
     auto start = chrono::high_resolution_clock::now();
-    for(size_t i{0}; i < N; i++) {
-        filter.insert(keys[i]);
-
+    if constexpr (testBatch) {
+        for(size_t i{0}; i < N/batchSize; i++) {
+            copy(keys.begin() + (i*batchSize), keys.begin() + ((i+1)*batchSize), batch.begin());
+            filter.insertBatch(batch, status, batchSize);
+        }
+    }
+    else {
+        for(size_t i{0}; i < N; i++) {
+            filter.insert(keys[i]);
+        }
     }
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end-start);
+    // cout << "inserted" << endl;
     res.insertTime = (size_t)duration.count();
     // this_thread::sleep_for(chrono::seconds(delayBetweenTests));
 
     start = chrono::high_resolution_clock::now(); 
     // uint64_t x = 0;
-    for(size_t i{0}; i < N; i++) {
-        if(!filter.query(keys[i])) {
-            // cerr << "Query on " << keys[i] << " failed." << endl;
-            // exit(EXIT_FAILURE);
-            cout << ratio << endl;
-            res.successfulQueryTime = -1ull;
-            return res;
+    if constexpr (testBatch) {
+        for(size_t i{0}; i < N/batchSize; i++) {
+            copy(keys.begin() + (i*batchSize), keys.begin() + ((i+1)*batchSize), batch.begin());
+            filter.queryBatch(batch, status, batchSize);
+            for(bool s: status) {
+                if(!s){
+                    cout << ratio << endl;
+                    res.successfulQueryTime = -1ull;
+                    return res;
+                }
+            }
         }
-        // x += filter.query(keys[i]);
+    }
+    else{
+        for(size_t i{0}; i < N; i++) {
+            if(!filter.query(keys[i])) {
+                // cerr << "Query on " << keys[i] << " failed." << endl;
+                // exit(EXIT_FAILURE);
+                cout << ratio << endl;
+                res.successfulQueryTime = -1ull;
+                return res;
+            }
+            // x += filter.query(keys[i]);
+        }
     }
     // cout << x << endl;
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);
+    // cout << "queried" << endl;
     res.successfulQueryTime = (size_t)duration.count();
     if constexpr (getBLR) {
         res.sBLR = ((double)filter.backyardLookupCount) / N;
@@ -91,11 +114,23 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio) {
 
     start = chrono::high_resolution_clock::now();
     uint64_t fpr = 0;
-    for(size_t i{0}; i < N; i++) {
-        fpr += filter.query(FPRkeys[i]);
+    if constexpr (testBatch) {
+        for(size_t i{0}; i < N/batchSize; i++) {
+            copy(FPRkeys.begin() + (i*batchSize), FPRkeys.begin() + ((i+1)*batchSize), batch.begin());
+            filter.queryBatch(batch, status, batchSize);
+            for(bool s: status) {
+                fpr += s;
+            }
+        }
+    }
+    else {
+        for(size_t i{0}; i < N; i++) {
+            fpr += filter.query(FPRkeys[i]);
+        }
     }
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);
+    // cout << "fpred" << endl;
     res.randomQueryTime = (size_t)duration.count();
     res.falsePositiveRate = ((double)fpr) / N;
     if constexpr (getBLR) {
@@ -106,13 +141,22 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio) {
 
     if constexpr (CanDelete) {
         start = chrono::high_resolution_clock::now();
-        for(size_t i{0}; i < N; i++) {
-            // assert(filter.remove(keys[i]));
-            filter.remove(keys[i]);
+        if constexpr (testBatch) {
+            for(size_t i{0}; i < N/batchSize; i++) {
+                copy(keys.begin() + (i*batchSize), keys.begin() + ((i+1)*batchSize), batch.begin());
+                filter.removeBatch(batch, status, batchSize);
+            }
+        }
+        else {
+            for(size_t i{0}; i < N; i++) {
+                // assert(filter.remove(keys[i]));
+                filter.remove(keys[i]);
+            }
         }
         end = chrono::high_resolution_clock::now();
         duration = chrono::duration_cast<chrono::microseconds>(end-start);
         res.removeTime = (size_t)duration.count();
+        // cout << "removed" << endl;
     }
     else {
         // res.removeTime = numeric_limits<double>::infinity();
@@ -122,10 +166,10 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio) {
     return res;
 }
 
-template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery = false>
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery = false, bool testBatch = false>
 TestResult benchDPF(mt19937& generator, size_t N, double ratio = 1.0) {
     using FilterType = DynamicPrefixFilter::DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>;
-    return benchFilter<FilterType, true, true>(generator, N, ratio);
+    return benchFilter<FilterType, true, true, testBatch>(generator, N, ratio);
 }
 
 class FilterTester {
@@ -240,132 +284,6 @@ class FilterTester {
 };
 
 
-//The methods in this function were copied from main.cc in VQF
-class VQFWrapper {
-    size_t nslots;
-    vqf_filter *filter;
-    static constexpr size_t QUQU_SLOTS_PER_BLOCK = 48; //Defined in vqf_filter.cpp so just copied from here. However there its defined based on remainder size, but here we just assume 8
-
-    public:
-        size_t range;
-
-        VQFWrapper(size_t nslots): nslots{nslots} {
-            if ((filter = vqf_init(nslots)) == NULL) {
-                fprintf(stderr, "Insertion failed");
-                exit(EXIT_FAILURE);
-            }
-            range = filter->metadata.range;
-        }
-
-        void insert(std::uint64_t hash) {
-            if constexpr (DynamicPrefixFilter::DEBUG || DynamicPrefixFilter::PARTIAL_DEBUG) {
-                if (!vqf_insert(filter, hash)) {
-                    fprintf(stderr, "Insertion failed");
-                    exit(EXIT_FAILURE);
-                }
-            }
-            else {
-                vqf_insert(filter, hash);
-            }
-        }
-
-        bool query(std::uint64_t hash) {
-            return vqf_is_present(filter, hash);
-        }
-
-        std::uint64_t sizeFilter() {
-            //Copied from vqf_filter.c
-            uint64_t total_blocks = (nslots + QUQU_SLOTS_PER_BLOCK)/QUQU_SLOTS_PER_BLOCK;
-            uint64_t total_size_in_bytes = sizeof(vqf_block) * total_blocks;
-            return total_size_in_bytes;
-        }
-
-        bool remove(std::uint64_t hash) {
-            return vqf_remove(filter, hash);
-        }
-
-        ~VQFWrapper() {
-            free(filter);
-        }
-};
-
-//Taken from the respective files in prefix filter codes
-
-//From TC_shortcut
-size_t sizeTC (size_t N) {
-    constexpr float load = .935;
-    const size_t single_pd_capacity = tc_sym::MAX_CAP;
-    return 64 * TC_shortcut::TC_compute_number_of_PD(N, single_pd_capacity, load);
-}
-
-//From stable cuckoo filter and singletable.h
-template<size_t bits_per_tag = 12>
-size_t sizeCFF(size_t N) {
-    static const size_t kTagsPerBucket = 4;
-    static const size_t kBytesPerBucket = (bits_per_tag * kTagsPerBucket + 7) >> 3;
-    static const size_t kPaddingBuckets = ((((kBytesPerBucket + 7) / 8) * 8) - 1) / kBytesPerBucket;
-    size_t assoc = 4;
-    // bucket count needs to be even
-    constexpr double load = .94;
-    size_t bucketCount = (10 + N / load / assoc) / 2 * 2;
-    return kBytesPerBucket * (bucketCount + kPaddingBuckets); //I think this is right?
-}
-
-//BBF-Flex is SimdBlockFilterFixed?? Seems to be by the main-perf code, so I shall stick with it
-size_t sizeBBFF(size_t N) {
-    unsigned long long int bits = N; //I am very unsure about this but it appears that is how the code is structured??? Size matches up anyways
-    size_t bucketCount = max(1ull, bits / 24);
-    using Bucket = uint32_t[8];
-    return bucketCount * sizeof(Bucket);
-}
-
-template<typename SpareType, size_t (*SpareSpaceCalculator)(size_t)>
-size_t sizePF (size_t N) {
-    constexpr float loads[2] = {.95, .95};
-    double frontyardSize =  32 * std::ceil(1.0 * N / (min_pd::MAX_CAP0 * loads[0]));
-    static double constexpr overflowing_items_ratio = 0.0586;
-    size_t backyardSize = SpareSpaceCalculator(get_l2_slots<SpareType>(N, overflowing_items_ratio, loads));
-    return backyardSize+frontyardSize;
-}
-
-template<typename FilterType, size_t (*SpaceCalculator)(size_t), bool CanRemove = false>
-class PFFilterAPIWrapper {
-    // using SpareType = TC_shortcut;
-    // using PrefixFilterType = Prefix_Filter<SpareType>;
-
-    size_t N;
-    FilterType filter;
-
-    public:
-        size_t range;
-
-        PFFilterAPIWrapper(size_t N): N{N}, filter{FilterAPI<FilterType>::ConstructFromAddCount(N)} {
-            range = -1ull;
-        }
-
-        void insert(std::uint64_t hash) {
-            FilterAPI<FilterType>::Add(hash, &filter);
-        }
-
-        bool query(std::uint64_t hash) {
-            return FilterAPI<FilterType>::Contain(hash, &filter);
-        }
-
-        std::uint64_t sizeFilter() {
-            //Copied from wrappers.hpp and TC-Shortcut.hpp in Prefix-Filter
-            //Size of frontyard
-            return SpaceCalculator(N);
-        }
-
-        bool remove(std::uint64_t hash) {
-            if(CanRemove) {
-                FilterAPI<FilterType>::Remove(hash, &filter);
-                return true; //No indication here at all
-            }
-            else
-                return false;
-        }
-};
 
 // template<typename FT, bool CanDelete = true>
 // function<TestResult(double)> glf(mt19937& generator) {
@@ -426,43 +344,49 @@ int main(int argc, char* argv[]) {
     for(size_t logN = 20; logN <= 28; logN+=2){
         FilterTester ft;
 
-        ft.addLoadFactors("DPF_22-8", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_22-8-FastSQuery", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("DPF_22-6", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 6, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("DPF_22-4", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_23-8", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("DPF_23-4", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_25-8", [&] (double lf) -> TestResult {return benchDPF<25, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("DPF_25-4", [&] (double lf) -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_46-8", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("DPF_46-6", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("DPF_46-4", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 4, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("DPF_51-8", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("DPF_51-6", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("DPF_52-8", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("DPF_52-8-FastSQuery", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("DPF_22-8", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_22-8-FastSQuery", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_22-8-FastSQuery-Batch", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // // ft.addLoadFactors("DPF_22-6", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 6, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // // ft.addLoadFactors("DPF_22-4", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_23-8", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // // ft.addLoadFactors("DPF_23-4", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_25-8", [&] (double lf) -> TestResult {return benchDPF<25, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // // ft.addLoadFactors("DPF_25-4", [&] (double lf) -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_46-8", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // // ft.addLoadFactors("DPF_46-6", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // // ft.addLoadFactors("DPF_46-4", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 4, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // // ft.addLoadFactors("DPF_51-8", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // // ft.addLoadFactors("DPF_51-6", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("DPF_52-8", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("DPF_52-8-FastSQuery", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 
-        ft.addLoadFactors("VQF", [&] (double lf) -> TestResult {return benchFilter<VQFWrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("VQF", [&] (double lf) -> TestResult {return benchFilter<VQFWrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 
 
-        using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
-        ft.addLoadFactors("PF-TC", [&] (double lf) -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        // using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
+        // ft.addLoadFactors("PF-TC", [&] (double lf) -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
-        using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
-        ft.addLoadFactors("PF-CF12F", [&] (double lf) -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        // using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+        // using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
+        // ft.addLoadFactors("PF-CF12F", [&] (double lf) -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
-        ft.addLoadFactors("PF-BBFF", [&] (double lf) -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        // using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+        // ft.addLoadFactors("PF-BBFF", [&] (double lf) -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
-        ft.addLoadFactors("TC", [&] (double lf) -> TestResult {return benchFilter<TC_Wrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        // using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
+        // ft.addLoadFactors("TC", [&] (double lf) -> TestResult {return benchFilter<TC_Wrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
-        ft.addLoadFactors("CF-12-Flex", [&] (double lf) -> TestResult {return benchFilter<CFF12_Wrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        // using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
+        // ft.addLoadFactors("CF-12-Flex", [&] (double lf) -> TestResult {return benchFilter<CFF12_Wrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
-        ft.addLoadFactors("BBF-Flex", [&] (double lf) -> TestResult {return benchFilter<BBFF_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        // using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
+        // ft.addLoadFactors("BBF-Flex", [&] (double lf) -> TestResult {return benchFilter<BBFF_Wrapper, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+
+        // using OriginalCF12 = CuckooWrapper<size_t, 12>;
+        // ft.addLoadFactors("OrigCF12", [&] (double lf) -> TestResult {return benchFilter<OriginalCF12, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+
+        // ft.addLoadFactors("Morton", [&] (double lf) -> TestResult {return benchFilter<MortonWrapper, true, false, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         
         ft.runAll(NumTests, generator, ofolder);
     }
