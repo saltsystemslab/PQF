@@ -346,7 +346,7 @@ int main(int argc, char* argv[]) {
 
         // ft.addLoadFactors("DPF_22-8", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
         // ft.addLoadFactors("DPF_22-8-FastSQuery", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_22-8-FastSQuery-Batch", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_22-8-FastSQuery-Batch", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
         // // ft.addLoadFactors("DPF_22-6", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 6, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
         // // ft.addLoadFactors("DPF_22-4", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
         // ft.addLoadFactors("DPF_23-8", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
@@ -360,6 +360,8 @@ int main(int argc, char* argv[]) {
         // // ft.addLoadFactors("DPF_51-6", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         // ft.addLoadFactors("DPF_52-8", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         // ft.addLoadFactors("DPF_52-8-FastSQuery", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_52-8-Batch", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64, false, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_52-8-FastSQuery-Batch", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 
         // ft.addLoadFactors("VQF", [&] (double lf) -> TestResult {return benchFilter<VQFWrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 

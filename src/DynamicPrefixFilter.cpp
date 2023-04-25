@@ -130,12 +130,15 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
 void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
-    for (size_t i=0; i < num_keys; i++) {
-        FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
-        // __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
-    }
-    for(size_t i=0; i < num_keys; i++) {
-        insert(hashes[i]);
+    constexpr size_t bsize = 16;
+    for (size_t j=0; j < num_keys; j+=bsize) {
+        for (size_t i=j; i < std::min(num_keys, j+bsize); i++) {
+            FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
+            __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+        }
+        for(size_t i=j; i < std::min(num_keys, j+bsize); i++) {
+            insert(hashes[i]);
+        }
     }
 }
 
@@ -175,12 +178,15 @@ bool DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
 void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::queryBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
-    for (size_t i=0; i < num_keys; i++) {
-        FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
-        // __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
-    }
-    for(size_t i=0; i < num_keys; i++) {
-        status[i] = query(hashes[i]);
+    constexpr size_t bsize = 16;
+    for (size_t j=0; j < num_keys; j+=bsize) {
+        for (size_t i=j; i < std::min(num_keys, j+bsize); i++) {
+            FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
+            __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+        }
+        for (size_t i=j; i < std::min(num_keys, j+bsize); i++) {
+            status[i] = query(hashes[i]);
+        }
     }
 }
 
@@ -238,12 +244,15 @@ bool DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
 void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::removeBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
-    for (size_t i=0; i < num_keys; i++) {
-        FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
-        // __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
-    }
-    for(size_t i=0; i < num_keys; i++) {
-        status[i] = remove(hashes[i]);
+    constexpr size_t bsize = 16;
+    for (size_t j=0; j < num_keys; j+=bsize) {
+        for (size_t i=j; i < std::min(num_keys, j+bsize); i++) {
+            FrontyardQRContainerType frontyardQR = getQRPairFromHash(hashes[i]);
+            __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+        }
+        for (size_t i=j; i < std::min(num_keys, j+bsize); i++) {
+            status[i] = remove(hashes[i]);
+        }
     }
 }
 
