@@ -167,8 +167,8 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio) {
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery = false, bool testBatch = false>
-TestResult benchDPF(mt19937& generator, size_t N, double ratio = 1.0) {
-    using FilterType = DynamicPrefixFilter::DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>;
+TestResult benchPQF(mt19937& generator, size_t N, double ratio = 1.0) {
+    using FilterType = DynamicPrefixFilter::PartitionQuotientFilter<8, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>;
     return benchFilter<FilterType, true, true, testBatch>(generator, N, ratio);
 }
 
@@ -304,7 +304,7 @@ int main(int argc, char* argv[]) {
         NumTests = atoi(argv[2]);
     }
     FilterTester ft;
-    string ofolder = "LoadFactorPerformanceTest/7950xTry5";
+    string ofolder = "LoadFactorPerformanceTest/7950xTry6";
     // constexpr size_t DelayBetweenTests = 15; //really should be like subtest
     // constexpr size_t DelayBetweenFilters = 0;
 
@@ -330,39 +330,39 @@ int main(int argc, char* argv[]) {
     // using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
     // ft.addTest("BBF-Flex", [&] () -> TestResult {return benchFilter<BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
-    // ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    // ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    // ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    // ft.addTest("DPF(22, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, N);});
-    // ft.addTest("DPF(23, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
-    // ft.addTest("DPF(24, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
-    // ft.addTest("DPF(24, 25, 17, 6, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 6, 32, 32>(generator, N, DelayBetweenTests);});
-    // ft.addTest("DPF(25, 25, 17, 4, 32, 32)", [&] () -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchPQF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchPQF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchPQF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchPQF<22, 25, 17, 8, 32, 32>(generator, N);});
+    // ft.addTest("DPF(23, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchPQF<23, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(24, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchPQF<24, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(24, 25, 17, 6, 32, 32)", [&] () -> TestResult {return benchPQF<24, 25, 17, 6, 32, 32>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(25, 25, 17, 4, 32, 32)", [&] () -> TestResult {return benchPQF<25, 25, 17, 4, 32, 32>(generator, N, DelayBetweenTests);});
     // // ft.addTest("VQF 85\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.85, DelayBetweenTests);});
     // ft.addTest("VQF 90\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.90, DelayBetweenTests);});
 
     for(size_t logN = 20; logN <= 28; logN+=2){
         FilterTester ft;
 
-        ft.addLoadFactors("DPF_22-8", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_22-8-Batch", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, false, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_22-8-FastSQuery", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_22-8-FastSQuery-Batch", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("DPF_22-6", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 6, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("DPF_22-4", [&] (double lf) -> TestResult {return benchDPF<22, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_23-8", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("DPF_23-4", [&] (double lf) -> TestResult {return benchDPF<23, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_25-8", [&] (double lf) -> TestResult {return benchDPF<25, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("DPF_25-4", [&] (double lf) -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        ft.addLoadFactors("DPF_46-8", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("DPF_46-6", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("DPF_46-4", [&] (double lf) -> TestResult {return benchDPF<46, 51, 35, 4, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("DPF_51-8", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("DPF_51-6", [&] (double lf) -> TestResult {return benchDPF<51, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("DPF_52-8", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("DPF_52-8-FastSQuery", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("DPF_52-8-Batch", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64, false, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("DPF_52-8-FastSQuery-Batch", [&] (double lf) -> TestResult {return benchDPF<52, 51, 35, 8, 64, 64, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_22-8", [&] (double lf) -> TestResult {return benchPQF<22, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_22-8-Batch", [&] (double lf) -> TestResult {return benchPQF<22, 25, 17, 8, 32, 32, false, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_22-8-FastSQuery", [&] (double lf) -> TestResult {return benchPQF<22, 25, 17, 8, 32, 32, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_22-8-FastSQuery-Batch", [&] (double lf) -> TestResult {return benchPQF<22, 25, 17, 8, 32, 32, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_22-6", [&] (double lf) -> TestResult {return benchPQF<22, 25, 17, 6, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_22-4", [&] (double lf) -> TestResult {return benchPQF<22, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_23-8", [&] (double lf) -> TestResult {return benchPQF<23, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_23-4", [&] (double lf) -> TestResult {return benchPQF<23, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_25-8", [&] (double lf) -> TestResult {return benchPQF<25, 25, 17, 8, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        // ft.addLoadFactors("DPF_25-4", [&] (double lf) -> TestResult {return benchPQF<25, 25, 17, 4, 32, 32>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("DPF_46-8", [&] (double lf) -> TestResult {return benchPQF<46, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("DPF_46-6", [&] (double lf) -> TestResult {return benchPQF<46, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("DPF_46-4", [&] (double lf) -> TestResult {return benchPQF<46, 51, 35, 4, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("DPF_51-8", [&] (double lf) -> TestResult {return benchPQF<51, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("DPF_51-6", [&] (double lf) -> TestResult {return benchPQF<51, 51, 35, 6, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_52-8", [&] (double lf) -> TestResult {return benchPQF<52, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_52-8-FastSQuery", [&] (double lf) -> TestResult {return benchPQF<52, 51, 35, 8, 64, 64, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_52-8-Batch", [&] (double lf) -> TestResult {return benchPQF<52, 51, 35, 8, 64, 64, false, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("DPF_52-8-FastSQuery-Batch", [&] (double lf) -> TestResult {return benchPQF<52, 51, 35, 8, 64, 64, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 
         ft.addLoadFactors("VQF", [&] (double lf) -> TestResult {return benchFilter<VQFWrapper, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 

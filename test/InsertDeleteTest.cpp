@@ -78,8 +78,8 @@ TestResult testInsertsUntilFull(size_t N_Filter, double ratio, size_t giveUpRati
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
-TestResult testDPF(size_t N, double r, size_t g) {
-    using FilterType = DynamicPrefixFilter::DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>;
+TestResult testPQF(size_t N, double r, size_t g) {
+    using FilterType = DynamicPrefixFilter::PartitionQuotientFilter<8, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>;
     return testInsertsUntilFull<FilterType, true>(N, r, g);
 }
 
@@ -189,12 +189,12 @@ int main(int argc, char* argv[]) {
     
     for(size_t logN = 15; logN <= 26; logN++) {
         for(double r: ratios)
-            ft.addTest("DPF_22_25_17_8_32_32", [&, r] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(N_Filter, r, 100);}, 1ull << logN, 1000);
+            ft.addTest("DPF_22_25_17_8_32_32", [&, r] (size_t N_Filter) -> TestResult {return testPQF<22, 25, 17, 8, 32, 32>(N_Filter, r, 100);}, 1ull << logN, 1000);
     }
 
     for(size_t logN = 15; logN <= 20; logN++) {
         for(double r: ratios)
-            ft.addTest("DPF_22_25_17_8_32_32", [&, r] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(N_Filter, r, 100000);}, 1ull << logN, 100);
+            ft.addTest("DPF_22_25_17_8_32_32", [&, r] (size_t N_Filter) -> TestResult {return testPQF<22, 25, 17, 8, 32, 32>(N_Filter, r, 100000);}, 1ull << logN, 100);
     }
 
     ft.runAll(NumTests, 8);

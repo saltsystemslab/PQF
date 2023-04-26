@@ -65,8 +65,8 @@ TestResult testInsertsUntilFull(mt19937& generator, size_t N_Filter) {
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
-TestResult testDPF(mt19937& generator, size_t N) {
-    using FilterType = DynamicPrefixFilter::DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>;
+TestResult testPQF(mt19937& generator, size_t N) {
+    using FilterType = DynamicPrefixFilter::PartitionQuotientFilter<8, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>;
     return testInsertsUntilFull<FilterType, true>(generator, N);
 }
 
@@ -180,19 +180,19 @@ int main(int argc, char* argv[]) {
     
     for(size_t logN = 15; logN <= 26; logN++) {
     // for(size_t logN = 28; logN <= 28; logN++) {
-        // ft.addTest("DPF_22-8", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_22-6", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 6, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_22-4", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_23-8", [&] (size_t N_Filter) -> TestResult {return testDPF<23, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_23-4", [&] (size_t N_Filter) -> TestResult {return testDPF<23, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_25-8", [&] (size_t N_Filter) -> TestResult {return testDPF<25, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_25-4", [&] (size_t N_Filter) -> TestResult {return testDPF<25, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_46-8", [&] (size_t N_Filter) -> TestResult {return testDPF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_46-6", [&] (size_t N_Filter) -> TestResult {return testDPF<46, 51, 35, 6, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_46-4", [&] (size_t N_Filter) -> TestResult {return testDPF<46, 51, 35, 4, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_51-8", [&] (size_t N_Filter) -> TestResult {return testDPF<51, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_51-6", [&] (size_t N_Filter) -> TestResult {return testDPF<51, 51, 35, 6, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_52-8", [&] (size_t N_Filter) -> TestResult {return testDPF<52, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_22-8", [&] (size_t N_Filter) -> TestResult {return testPQF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_22-6", [&] (size_t N_Filter) -> TestResult {return testPQF<22, 25, 17, 6, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_22-4", [&] (size_t N_Filter) -> TestResult {return testPQF<22, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_23-8", [&] (size_t N_Filter) -> TestResult {return testPQF<23, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_23-4", [&] (size_t N_Filter) -> TestResult {return testPQF<23, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_25-8", [&] (size_t N_Filter) -> TestResult {return testPQF<25, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_25-4", [&] (size_t N_Filter) -> TestResult {return testPQF<25, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_46-8", [&] (size_t N_Filter) -> TestResult {return testPQF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_46-6", [&] (size_t N_Filter) -> TestResult {return testPQF<46, 51, 35, 6, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_46-4", [&] (size_t N_Filter) -> TestResult {return testPQF<46, 51, 35, 4, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_51-8", [&] (size_t N_Filter) -> TestResult {return testPQF<51, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_51-6", [&] (size_t N_Filter) -> TestResult {return testPQF<51, 51, 35, 6, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_52-8", [&] (size_t N_Filter) -> TestResult {return testPQF<52, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
 
         using OriginalCF12 = CuckooWrapper<size_t, 12>;
         ft.addTest("OrigCF12", [&] (size_t N_Filter) -> TestResult {return testInsertsUntilFull<OriginalCF12>(generator, N_Filter);}, 1ull << logN);
@@ -205,18 +205,18 @@ int main(int argc, char* argv[]) {
         // using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
         // using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
         // ft.addTest("CF-12-Flex", [&] (size_t N_Filter) -> TestResult {return testInsertsUntilFull<CFF12_Wrapper, true>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("DPF_23_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testDPF<23, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("Matched_VQF_85_46_51_35_8_64_64",[&] (size_t N_Filter) -> TestResult {return testDPF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("Matched_VQF_90_49_51_35_8_64_64",[&] (size_t N_Filter) -> TestResult {return testDPF<49, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("DPF_23_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testPQF<23, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("Matched_VQF_85_46_51_35_8_64_64",[&] (size_t N_Filter) -> TestResult {return testPQF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("Matched_VQF_90_49_51_35_8_64_64",[&] (size_t N_Filter) -> TestResult {return testPQF<49, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
     }
     // for(size_t logN = 27; logN <= 30; logN++) {
-    //     ft.addTest("DPF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 1000);
-    //     ft.addTest("Matched_VQF_85_46_51_35_8_64_64", [&] (size_t N_Filter) -> TestResult {return testDPF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN, 1000);
+    //     ft.addTest("DPF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testPQF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 1000);
+    //     ft.addTest("Matched_VQF_85_46_51_35_8_64_64", [&] (size_t N_Filter) -> TestResult {return testPQF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN, 1000);
     // }
 
     // for(size_t logN = 31; logN <= 33; logN++) {
-    //     // ft.addTest("DPF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testDPF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 50);
-    //     ft.addTest("Matched_VQF_85_46_51_35_8_64_64", [&] (size_t N_Filter) -> TestResult {return testDPF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN, 50);
+    //     // ft.addTest("DPF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testPQF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 50);
+    //     ft.addTest("Matched_VQF_85_46_51_35_8_64_64", [&] (size_t N_Filter) -> TestResult {return testPQF<46, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN, 50);
     // }
 
     ft.runAll(NumTests, 31);

@@ -4,15 +4,16 @@
 #include <cstddef>
 #include <cstdint>
 #include "MiniFilter.hpp"
+#include "RemainderStore.hpp"
 
 namespace DynamicPrefixFilter {
     //Maybe have a bit set to if the bucket is not overflowed? Cause right now the bucket may send you to the backyard even if there is nothing in the backyard, but the bucket is just full. Not that big a deal, but this slight optimization might be worth a bit?
     //Like maybe have one extra key in the minifilter and then basically account for that or smth? Not sure.
-    template<std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t, std::size_t> typename TypeOfRemainderStoreTemplate, template<std::size_t> typename TypeOfQRContainerTemplate, std::size_t Size=64, bool FastSQuery = false>
+    template<std::size_t SizeRemainders, std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t> typename TypeOfQRContainerTemplate, std::size_t Size=64, bool FastSQuery = false>
     struct alignas(Size) Bucket {
         using TypeOfMiniFilter = MiniFilter<NumKeys, NumMiniBuckets>;
         TypeOfMiniFilter miniFilter;
-        using TypeOfRemainderStore = TypeOfRemainderStoreTemplate<NumKeys, TypeOfMiniFilter::Size>;
+        using TypeOfRemainderStore = RemainderStore<SizeRemainders, NumKeys, TypeOfMiniFilter::Size>;
         TypeOfRemainderStore remainderStore;
         using TypeOfQRContainer = TypeOfQRContainerTemplate<NumMiniBuckets>;
         

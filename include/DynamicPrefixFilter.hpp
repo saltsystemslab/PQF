@@ -10,8 +10,8 @@
 #include "RemainderStore.hpp"
 
 namespace DynamicPrefixFilter {
-    template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity = 51, std::size_t BackyardBucketCapacity = 35, std::size_t FrontyardToBackyardRatio = 8, std::size_t FrontyardBucketSize = 64, std::size_t BackyardBucketSize = 64, bool FastSQuery = false>
-    class DynamicPrefixFilter8Bit {
+    template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity = 51, std::size_t BackyardBucketCapacity = 35, std::size_t FrontyardToBackyardRatio = 8, std::size_t FrontyardBucketSize = 64, std::size_t BackyardBucketSize = 64, bool FastSQuery = false>
+    class PartitionQuotientFilter {
         static_assert(FrontyardBucketSize == 32 || FrontyardBucketSize == 64);
         static_assert(BackyardBucketSize == 32 || BackyardBucketSize == 64);
         // constexpr static std::size_t FrontyardBucketSize = 64;
@@ -31,12 +31,12 @@ namespace DynamicPrefixFilter {
 
         private:
             using FrontyardQRContainerType = FrontyardQRContainer<BucketNumMiniBuckets>;
-            using FrontyardBucketType = Bucket<FrontyardBucketCapacity, BucketNumMiniBuckets, RemainderStore8Bit, FrontyardQRContainer, FrontyardBucketSize, FastSQuery>;
+            using FrontyardBucketType = Bucket<SizeRemainders, FrontyardBucketCapacity, BucketNumMiniBuckets, FrontyardQRContainer, FrontyardBucketSize, FastSQuery>;
             static_assert(sizeof(FrontyardBucketType) == FrontyardBucketSize);
             using BackyardQRContainerType = BackyardQRContainer<BucketNumMiniBuckets, 8, FrontyardToBackyardRatio>;
             template<size_t NumMiniBuckets>
             using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, 8, FrontyardToBackyardRatio>;
-            using BackyardBucketType = Bucket<BackyardBucketCapacity, BucketNumMiniBuckets, RemainderStore12Bit, WrappedBackyardQRContainerType, BackyardBucketSize, FastSQuery>;
+            using BackyardBucketType = Bucket<SizeRemainders + 4, BackyardBucketCapacity, BucketNumMiniBuckets, WrappedBackyardQRContainerType, BackyardBucketSize, FastSQuery>;
             static_assert(sizeof(BackyardBucketType) == BackyardBucketSize);
 
             static constexpr double NormalizingFactor = (double)FrontyardBucketCapacity / (double) BucketNumMiniBuckets * (double)(1+FrontyardToBackyardRatio)/(FrontyardToBackyardRatio);
@@ -58,7 +58,7 @@ namespace DynamicPrefixFilter {
             // std::size_t normalizedCapacity;
             std::size_t capacity;
             std::size_t range;
-            DynamicPrefixFilter8Bit(std::size_t N, bool Normalize = true);
+            PartitionQuotientFilter(std::size_t N, bool Normalize = true);
             void insert(std::uint64_t hash);
             void insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys); //Really lazy and not super optimized implementation just to show that morton filters can easily be beaten
             std::uint64_t queryWhere(std::uint64_t hash); //also queries where the item is (backyard or frontyard)
