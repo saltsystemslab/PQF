@@ -10,13 +10,13 @@
 using namespace std;
 using namespace DynamicPrefixFilter;
 
-template<size_t NumKeys, template<std::size_t NumRemainders, std::size_t Offset> class StoreType>
+template<size_t SizeRemainder, size_t NumKeys, template<size_t, std::size_t, std::size_t> class StoreType>
 struct alignas(64) FakeBucket {
-    static constexpr size_t frontOffsetSize = (64-StoreType<NumKeys, 0>::Size)/2;
-    static constexpr size_t backOffsetSize = 64-StoreType<NumKeys, 0>::Size-frontOffsetSize;
+    static constexpr size_t frontOffsetSize = (64-StoreType<SizeRemainder, NumKeys, 0>::Size)/2;
+    static constexpr size_t backOffsetSize = 64-StoreType<SizeRemainder, NumKeys, 0>::Size-frontOffsetSize;
     
     std::array<uint8_t, frontOffsetSize> frontOffset;
-    StoreType<NumKeys, frontOffsetSize> remainderStore;
+    StoreType<SizeRemainder, NumKeys, frontOffsetSize> remainderStore;
     std::array<uint8_t, backOffsetSize> backOffset;
 
     void basicFunctionTestWrapper(std::function<void(void)> func) {
@@ -70,11 +70,11 @@ struct alignas(64) FakeBucket {
     }
 };
 
-template<size_t NumKeys, size_t NumMiniBuckets, template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
+template<std::size_t SizeRemainder, size_t NumKeys, size_t NumMiniBuckets, template<std::size_t, std::size_t, std::size_t> class StoreType, size_t StoreTypeRemainderSize>
 void testBucket(mt19937& generator) {
     cout << "Testing with " << NumKeys << " keys." << endl;
 
-    FakeBucket<NumKeys, StoreType> testBucket(generator);
+    FakeBucket<SizeRemainder, NumKeys, StoreType> testBucket(generator);
     array<size_t, NumMiniBuckets> sizeEachMiniBucket{};
     // map<pair<size_t, uint64_t>, uint64_t> remToExpectedMask;
     set<pair<pair<size_t, size_t>, uint64_t>> remaindersForUnordered;
@@ -130,23 +130,27 @@ void testBucket(mt19937& generator) {
         size_t minBound = 0;
         //Just temporary cause well it should be fast enough even for 12 bits but testing 16 bits obv can't test everything, so there just make it like test just the things in the map
         for(size_t j{0}; j < NumMiniBuckets && minBound < NumKeys; j++) {
-            for(size_t k{0}; k < (1ull << StoreTypeRemainderSize)-1; k++) {
-                testBucket.checkQuery(k, make_pair(minBound, min(minBound+sizeEachMiniBucket[j], NumKeys)), miniBucketRemainderCounts[make_pair(j, k)]);
+            // for(size_t k{0}; k < (1ull << StoreTypeRemainderSize)-1; k++) {
+            //     testBucket.checkQuery(k, make_pair(minBound, min(minBound+sizeEachMiniBucket[j], NumKeys)), miniBucketRemainderCounts[make_pair(j, k)]);
+            // }
+            for (auto it = miniBucketRemainderCounts.begin(); it != miniBucketRemainderCounts.end(); it++) {
+                if((it->first).first != j) continue;
+                testBucket.checkQuery((it->first).second, make_pair(minBound, min(minBound+sizeEachMiniBucket[j], NumKeys)), it->second);
             }
             minBound += sizeEachMiniBucket[j];
         }
     }
 }
 
-template<template<std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
+template<template<std::size_t SizeRemainders, std::size_t NumRemainders, std::size_t Offset> class StoreType, size_t StoreTypeRemainderSize>
 void runTests(mt19937& generator) {
     for(size_t i{0}; i < 100; i++) {
-        testBucket<15, 1, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<35, 52, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<51, 52, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<25, 26, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<47, 61, StoreType, StoreTypeRemainderSize>(generator);
-        testBucket<60, 5, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<StoreTypeRemainderSize, 15, 1, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<StoreTypeRemainderSize, 35, 52, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<StoreTypeRemainderSize, 51, 52, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<StoreTypeRemainderSize, 25, 26, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<StoreTypeRemainderSize, 47, 61, StoreType, StoreTypeRemainderSize>(generator);
+        testBucket<StoreTypeRemainderSize, 60, 5, StoreType, StoreTypeRemainderSize>(generator);
     }
 }
 
@@ -154,15 +158,19 @@ int main() {
     random_device rd;
     mt19937 generator (rd());
 
-    cout << "Testing 8 bit" << endl;
-    runTests<RemainderStore8Bit, 8>(generator);
-    cout << "Testing 4 bit" << endl;
-    runTests<RemainderStore4Bit, 4>(generator);
-    cout << "Testing 12 bit (composite of 4 & 8)" << endl;
-    for(size_t i{0}; i < 100; i++) {
-        testBucket<35, 52, RemainderStore12Bit, 12>(generator);
-        testBucket<15, 1, RemainderStore12Bit, 12>(generator);
-        testBucket<25, 26, RemainderStore12Bit, 12>(generator);
-        testBucket<37, 26, RemainderStore12Bit, 12>(generator);
-    }
+    // cout << "Testing 8 bit" << endl;
+    // runTests<RemainderStore, 8>(generator);
+    // cout << "Testing 4 bit" << endl;
+    // runTests<RemainderStore, 4>(generator);
+    cout << "Testing 16 bit" << endl;
+    testBucket<16, 24, 24, RemainderStore, 16>(generator);
+    cout << "Testing 20 bit" << endl;
+    testBucket<20, 16, 16, RemainderStore, 20>(generator);
+    // cout << "Testing 12 bit (composite of 4 & 8)" << endl;
+    // for(size_t i{0}; i < 100; i++) {
+    //     testBucket<12, 35, 52, RemainderStore, 12>(generator);
+    //     testBucket<12, 15, 1, RemainderStore, 12>(generator);
+    //     testBucket<12, 25, 26, RemainderStore, 12>(generator);
+    //     testBucket<12, 37, 26, RemainderStore, 12>(generator);
+    // }
 }

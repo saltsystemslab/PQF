@@ -93,7 +93,8 @@ size_t sizeBBFF(size_t N) {
 
 template<typename SpareType, size_t (*SpareSpaceCalculator)(size_t)>
 size_t sizePF (size_t N) {
-    constexpr float loads[2] = {.95, .95};
+    // constexpr float loads[2] = {.95, .95};
+    constexpr float loads[2] = {1.0, 1.0};
     double frontyardSize =  32 * std::ceil(1.0 * N / (min_pd::MAX_CAP0 * loads[0]));
     static double constexpr overflowing_items_ratio = 0.0586;
     size_t backyardSize = SpareSpaceCalculator(get_l2_slots<SpareType>(N, overflowing_items_ratio, loads));
@@ -177,9 +178,10 @@ class CuckooWrapper{
         }
 };
 
+template<typename FT = CompressedCuckoo::Morton3_12>
 class MortonWrapper{
     size_t N;
-    using FT = CompressedCuckoo::Morton3_12;
+    // using FT = CompressedCuckoo::Morton3_12;
     FT filter;
 
     public:

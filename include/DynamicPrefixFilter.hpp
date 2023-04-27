@@ -33,13 +33,15 @@ namespace DynamicPrefixFilter {
             using FrontyardQRContainerType = FrontyardQRContainer<BucketNumMiniBuckets>;
             using FrontyardBucketType = Bucket<SizeRemainders, FrontyardBucketCapacity, BucketNumMiniBuckets, FrontyardQRContainer, FrontyardBucketSize, FastSQuery>;
             static_assert(sizeof(FrontyardBucketType) == FrontyardBucketSize);
-            using BackyardQRContainerType = BackyardQRContainer<BucketNumMiniBuckets, 8, FrontyardToBackyardRatio>;
+            using BackyardQRContainerType = BackyardQRContainer<BucketNumMiniBuckets, SizeRemainders, FrontyardToBackyardRatio>;
             template<size_t NumMiniBuckets>
-            using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, 8, FrontyardToBackyardRatio>;
+            using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, SizeRemainders, FrontyardToBackyardRatio>;
             using BackyardBucketType = Bucket<SizeRemainders + 4, BackyardBucketCapacity, BucketNumMiniBuckets, WrappedBackyardQRContainerType, BackyardBucketSize, FastSQuery>;
             static_assert(sizeof(BackyardBucketType) == BackyardBucketSize);
 
             static constexpr double NormalizingFactor = (double)FrontyardBucketCapacity / (double) BucketNumMiniBuckets * (double)(1+FrontyardToBackyardRatio)/(FrontyardToBackyardRatio);
+
+            static constexpr uint64_t HashMask = (1ull << SizeRemainders) - 1;
             
             std::uint64_t R;
             std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> backyardToFrontyard; //Comment this out when done with testing I guess?
