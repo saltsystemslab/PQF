@@ -9,9 +9,9 @@
 namespace DynamicPrefixFilter {
     //Maybe have a bit set to if the bucket is not overflowed? Cause right now the bucket may send you to the backyard even if there is nothing in the backyard, but the bucket is just full. Not that big a deal, but this slight optimization might be worth a bit?
     //Like maybe have one extra key in the minifilter and then basically account for that or smth? Not sure.
-    template<std::size_t SizeRemainders, std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t> typename TypeOfQRContainerTemplate, std::size_t Size=64, bool FastSQuery = false>
+    template<std::size_t SizeRemainders, std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t> typename TypeOfQRContainerTemplate, std::size_t Size, bool FastSQuery, bool Threaded>
     struct alignas(Size) Bucket {
-        using TypeOfMiniFilter = MiniFilter<NumKeys, NumMiniBuckets>;
+        using TypeOfMiniFilter = MiniFilter<NumKeys, NumMiniBuckets, Threaded>;
         TypeOfMiniFilter miniFilter;
         using TypeOfRemainderStore = RemainderStore<SizeRemainders, NumKeys, TypeOfMiniFilter::Size>;
         TypeOfRemainderStore remainderStore;
@@ -77,6 +77,29 @@ namespace DynamicPrefixFilter {
                     // else {
                     //     return 0;
                     // }
+                }
+            }
+        }
+
+        bool querySimple(TypeOfQRContainer qr) {
+            if constexpr (!FastSQuery) {
+                std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+                std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+                return inFilter != 0;
+            }
+            else {
+                // std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+                std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, -1ull);
+                if(inFilter == 0) {
+                    return 0;
+                }
+                else if (NumKeys + NumMiniBuckets <= 64 && (inFilter & (inFilter-1)) == 0) {
+                    return miniFilter.checkMiniBucketKeyPair(qr.miniBucketIndex, inFilter);
+                }
+                else {
+                    std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+                    inFilter &= boundsMask.second - boundsMask.first;
+                    return inFilter != 0;
                 }
             }
         }
@@ -246,6 +269,14 @@ namespace DynamicPrefixFilter {
 
         std::size_t countKeys() {
             return miniFilter.countKeys();
+        }
+
+        void lock() {
+            miniFilter.lock();
+        }
+
+        void unlock() {
+            miniFilter.unlock();
         }
     };
 }

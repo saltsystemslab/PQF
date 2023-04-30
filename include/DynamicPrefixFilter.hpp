@@ -10,7 +10,75 @@
 #include "RemainderStore.hpp"
 
 namespace DynamicPrefixFilter {
-    template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity = 51, std::size_t BackyardBucketCapacity = 35, std::size_t FrontyardToBackyardRatio = 8, std::size_t FrontyardBucketSize = 64, std::size_t BackyardBucketSize = 64, bool FastSQuery = false>
+
+    template<typename T, size_t alignment>
+    class AlignedVector { //Just here to make locking easier, lol
+        private:
+            std::size_t s;
+            std::size_t alignedSize;
+            T* vec;
+
+            constexpr size_t getAlignedSize(size_t num) {
+                return ((num*sizeof(T)+alignment - 1) / alignment)*alignment;
+            }
+
+        public:
+            AlignedVector(std::size_t s=0): s{s}, alignedSize{getAlignedSize(s)}, vec{static_cast<T*>(std::aligned_alloc(alignment, alignedSize))} {
+                // std::cout << alignedSize << std::endl;
+                for(size_t i{0}; i < s; i++) {
+                    // if(i%10000 == 0) std::cout << i << std::endl;
+                    vec[i] = T();
+                }
+            }
+            ~AlignedVector() {
+                if(vec != NULL)
+                    free(vec);
+            }
+
+            AlignedVector(const AlignedVector& a): s{a.s}, alignedSize{getAlignedSize(s)}, vec{static_cast<T*>(std::aligned_alloc(alignment, alignedSize))} {
+                memcpy(vec, a.vec, alignedSize);
+            }
+
+            AlignedVector& operator=(const AlignedVector& a) {
+                if(vec!=NULL)
+                    free(vec);
+                s = a.s;
+                alignedSize = a.alignedSize;
+                vec = static_cast<T*>(std::aligned_alloc(alignment, alignedSize));
+                memcpy(vec, a.vec, alignedSize);
+                return *this;
+            }
+
+            AlignedVector(AlignedVector&& a): s{a.s}, alignedSize{a.alignedSize}, vec{a.vec} {
+                a.vec = NULL;
+                a.s = 0;
+                a.alignedSize = 0;
+            }
+
+            AlignedVector& operator=(AlignedVector&& a) {
+                vec = a.vec;
+                s = a.s;
+                alignedSize = a.alignedSize;
+                a.s = 0;
+                a.alignedSize = 0;
+                a.vec = NULL;
+                return *this;
+            }
+
+            T& operator[](size_t i) {
+                return vec[i];
+            }
+
+            const T& operator[](size_t i) const {
+                return vec[i];
+            }
+
+            size_t size() {
+                return s;
+            }
+    };
+
+    template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity = 51, std::size_t BackyardBucketCapacity = 35, std::size_t FrontyardToBackyardRatio = 8, std::size_t FrontyardBucketSize = 64, std::size_t BackyardBucketSize = 64, bool FastSQuery = false, bool Threaded = false>
     class PartitionQuotientFilter {
         static_assert(FrontyardBucketSize == 32 || FrontyardBucketSize == 64);
         static_assert(BackyardBucketSize == 32 || BackyardBucketSize == 64);
@@ -31,23 +99,38 @@ namespace DynamicPrefixFilter {
 
         private:
             using FrontyardQRContainerType = FrontyardQRContainer<BucketNumMiniBuckets>;
-            using FrontyardBucketType = Bucket<SizeRemainders, FrontyardBucketCapacity, BucketNumMiniBuckets, FrontyardQRContainer, FrontyardBucketSize, FastSQuery>;
+            using FrontyardBucketType = Bucket<SizeRemainders, FrontyardBucketCapacity, BucketNumMiniBuckets, FrontyardQRContainer, FrontyardBucketSize, FastSQuery, Threaded>;
             static_assert(sizeof(FrontyardBucketType) == FrontyardBucketSize);
             using BackyardQRContainerType = BackyardQRContainer<BucketNumMiniBuckets, SizeRemainders, FrontyardToBackyardRatio>;
             template<size_t NumMiniBuckets>
             using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, SizeRemainders, FrontyardToBackyardRatio>;
-            using BackyardBucketType = Bucket<SizeRemainders + 4, BackyardBucketCapacity, BucketNumMiniBuckets, WrappedBackyardQRContainerType, BackyardBucketSize, FastSQuery>;
+            using BackyardBucketType = Bucket<SizeRemainders + 4, BackyardBucketCapacity, BucketNumMiniBuckets, WrappedBackyardQRContainerType, BackyardBucketSize, FastSQuery, Threaded>;
             static_assert(sizeof(BackyardBucketType) == BackyardBucketSize);
 
             static constexpr double NormalizingFactor = (double)FrontyardBucketCapacity / (double) BucketNumMiniBuckets * (double)(1+FrontyardToBackyardRatio)/(FrontyardToBackyardRatio);
 
             static constexpr uint64_t HashMask = (1ull << SizeRemainders) - 1;
+
+            static constexpr std::size_t frontyardLockCachelineMask = ~((1ull << ((64/FrontyardBucketSize) - 1)) - 1); //So that if multiple buckets in same cacheline, we always pick the same one to lock to not get corruption.
+            inline void lockFrontyard(std::size_t i);
+            inline void unlockFrontyard(std::size_t i);
+
+            static constexpr std::size_t backyardLockCachelineMask = ~((1ull << ((64/BackyardBucketSize) - 1)) - 1);
+            inline void lockBackyard(std::size_t i1, std::size_t i2);
+            inline void unlockBackyard(std::size_t i1, std::size_t i2);
             
             std::uint64_t R;
             std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> backyardToFrontyard; //Comment this out when done with testing I guess?
             // std::vector<size_t> overflows;
             FrontyardQRContainerType getQRPairFromHash(std::uint64_t hash);
-            bool insertOverflow(FrontyardQRContainerType overflow);
+            inline bool insertOverflow(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR);
+            inline std::uint64_t queryBackyard(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR);
+            inline bool removeFromBackyard(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR, bool elementInFrontyard);
+
+            inline bool insertInner(FrontyardQRContainerType frontyardQR);
+            inline std::uint64_t queryWhereInner(FrontyardQRContainerType frontyardQR);
+            inline bool queryInner(FrontyardQRContainerType frontyardQR);
+            inline bool removeInner(FrontyardQRContainerType frontyardQR);
         
         public:
             bool insertFailure = false;
@@ -74,9 +157,18 @@ namespace DynamicPrefixFilter {
             // double getAverageOverflow();
         
         private:
-            std::vector<FrontyardBucketType> frontyard;
-            std::vector<BackyardBucketType> backyard;
+            AlignedVector<FrontyardBucketType, 64> frontyard;
+            AlignedVector<BackyardBucketType, 64> backyard;
 
+    };
+
+
+    template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
+    class PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, true>: PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, false> {
+        public:
+            PartitionQuotientFilter& operator=(const PartitionQuotientFilter& a) = delete;
+            PartitionQuotientFilter(PartitionQuotientFilter&& a) = delete;
+            PartitionQuotientFilter& operator=(PartitionQuotientFilter&& a) = delete;
     };
 }
 

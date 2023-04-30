@@ -17,8 +17,26 @@ template class PartitionQuotientFilter<8, 51, 51, 35, 8, 64, 64>;
 template class PartitionQuotientFilter<8, 51, 51, 35, 6, 64, 64>;
 template class PartitionQuotientFilter<8, 52, 51, 35, 8, 64, 64>;
 template class PartitionQuotientFilter<8, 52, 51, 35, 8, 64, 64, true>;
-template class PartitionQuotientFilter<8, 22, 25, 17, 8, 32, 32>;
-template class PartitionQuotientFilter<8, 22, 25, 17, 8, 32, 32, true>;
+template class PartitionQuotientFilter<8, 52, 51, 35, 8, 64, 64, false, true>;
+template class PartitionQuotientFilter<8, 52, 51, 35, 8, 64, 64, true, true>;
+template class PartitionQuotientFilter<8, 53, 51, 35, 8, 64, 64>;
+template class PartitionQuotientFilter<8, 53, 51, 35, 8, 64, 64, true>;
+template class PartitionQuotientFilter<8, 62, 50, 34, 8, 64, 64>;
+template class PartitionQuotientFilter<8, 62, 50, 34, 8, 64, 64, true>;
+template class PartitionQuotientFilter<8, 61, 50, 34, 8, 64, 64, false, true>;
+template class PartitionQuotientFilter<8, 61, 50, 34, 8, 64, 64, true, true>;
+template class PartitionQuotientFilter<8, 22, 25, 18, 8, 32, 32>;
+template class PartitionQuotientFilter<8, 22, 25, 18, 8, 32, 32, true>;
+template class PartitionQuotientFilter<8, 22, 25, 37, 8, 32, 64>;
+template class PartitionQuotientFilter<8, 22, 25, 37, 8, 32, 64, true>;
+template class PartitionQuotientFilter<8, 21, 25, 18, 8, 32, 32, false, true>;
+template class PartitionQuotientFilter<8, 21, 25, 18, 8, 32, 32, true, true>;
+template class PartitionQuotientFilter<8, 22, 25, 17, 8, 32, 32, false, true>;
+template class PartitionQuotientFilter<8, 22, 25, 17, 8, 32, 32, true, true>;
+template class PartitionQuotientFilter<8, 31, 24, 17, 8, 32, 32>;
+template class PartitionQuotientFilter<8, 31, 24, 17, 8, 32, 32, true>;
+template class PartitionQuotientFilter<8, 31, 24, 17, 8, 32, 32, false, true>;
+template class PartitionQuotientFilter<8, 31, 24, 17, 8, 32, 32, true, true>;
 template class PartitionQuotientFilter<8, 22, 25, 17, 6, 32, 32>;
 template class PartitionQuotientFilter<8, 22, 25, 17, 4, 32, 32>;
 template class PartitionQuotientFilter<8, 25, 25, 17, 8, 32, 32>;
@@ -33,9 +51,11 @@ template class PartitionQuotientFilter<8, 24, 25, 17, 8, 32, 32>;
 template class PartitionQuotientFilter<8, 24, 25, 17, 6, 32, 32>;
 template class PartitionQuotientFilter<16, 36, 28, 22, 8, 64, 64>;
 template class PartitionQuotientFilter<16, 36, 28, 22, 8, 64, 64, true>;
+template class PartitionQuotientFilter<16, 35, 28, 22, 8, 64, 64, false, true>;
+template class PartitionQuotientFilter<16, 35, 28, 22, 8, 64, 64, true, true>;
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::PartitionQuotientFilter(std::size_t N, bool Normalize): 
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::PartitionQuotientFilter(std::size_t N, bool Normalize): 
     capacity{Normalize ? static_cast<size_t>(N/NormalizingFactor) : N},
     range{capacity << SizeRemainders},
     frontyard((capacity+BucketNumMiniBuckets-1)/BucketNumMiniBuckets),
@@ -47,13 +67,13 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
     // std::cout << NormalizingFactor << " " << frontyard.size() << std::endl;
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::sizeFilter() {
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::sizeFilter() {
     return (frontyard.size()*sizeof(FrontyardBucketType)) + (backyard.size()*sizeof(BackyardBucketType));
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::FrontyardQRContainerType PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::getQRPairFromHash(std::uint64_t hash) {
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::FrontyardQRContainerType PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::getQRPairFromHash(std::uint64_t hash) {
     if constexpr (DEBUG) {
         FrontyardQRContainerType f = FrontyardQRContainerType(hash >> SizeRemainders, hash & HashMask);
         assert(f.bucketIndex < frontyard.size());
@@ -64,10 +84,75 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
     return FrontyardQRContainerType(hash >> SizeRemainders, hash & HashMask);
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insertOverflow(FrontyardQRContainerType overflow) {
-    BackyardQRContainerType firstBackyardQR(overflow, 0, R);
-    BackyardQRContainerType secondBackyardQR(overflow, 1, R);
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::lockFrontyard(std::size_t i) {
+    
+    //FIX THE ISSUE OF HAVING TWO LOCKS PER CACHELINE!!!! Not as trivial as sounds, unless can simple make the vector allocate aligned to 64 bytes.
+    if constexpr (Threaded) {
+        // std::cout << "tl" << i << std::endl;
+        // std::cout << "tf" << std::endl;
+        frontyard[i & frontyardLockCachelineMask].lock();
+        // std::cout << "tfd" << std::endl;
+        // std::cout << "l" << i << std::endl;
+    }
+
+}
+
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::unlockFrontyard(std::size_t i) {
+    
+    if constexpr (Threaded) {
+        frontyard[i & frontyardLockCachelineMask].unlock();
+        // std::cout << "u" << i << std::endl;
+    }
+
+}
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::lockBackyard(std::size_t i1, std::size_t i2) {
+
+    if constexpr (Threaded) {
+        i1 &= backyardLockCachelineMask;
+        i2 &= backyardLockCachelineMask;
+        // std::cout << "tlb" << std::endl;
+        if (i1 == i2) { 
+            backyard[i1].lock();
+            return;
+        }
+        if (i1 > i2) std::swap(i1, i2);
+        backyard[i1].lock();
+        backyard[i2].lock();
+        // std::cout << "tlbr" << std::endl;
+    }
+
+}
+
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::unlockBackyard(std::size_t i1, std::size_t i2) {
+    
+    if constexpr (Threaded) {
+        i1 &= backyardLockCachelineMask;
+        i2 &= backyardLockCachelineMask;
+        if (i1 == i2) { 
+            backyard[i1].unlock();
+            return;
+        }
+        // if (i1 > i2) std::swap(i1, i2);
+        backyard[i2].unlock();
+        backyard[i1].unlock();
+    }
+
+}
+
+
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::insertOverflow(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR) {
+    // BackyardQRContainerType firstBackyardQR(overflow, 0, R);
+    // BackyardQRContainerType secondBackyardQR(overflow, 1, R);
     if constexpr (DEBUG) {
         if(backyardToFrontyard.count(std::make_pair(firstBackyardQR.bucketIndex, firstBackyardQR.whichFrontyardBucket)) == 0) {
             backyardToFrontyard[std::make_pair(firstBackyardQR.bucketIndex, firstBackyardQR.whichFrontyardBucket)] = overflow.bucketIndex;
@@ -118,22 +203,29 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     return true;
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insert(std::uint64_t hash) {
-    FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::insertInner(FrontyardQRContainerType frontyardQR) {
+    // FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     FrontyardQRContainerType overflow = frontyard[frontyardQR.bucketIndex].insert(frontyardQR);
     if constexpr (DEBUG) {
         assert((uint64_t)(&frontyard[frontyardQR.bucketIndex]) % FrontyardBucketSize == 0);
     }
     if(overflow.miniBucketIndex != -1ull) {
         // overflows[frontyardQR.bucketIndex]++;
-        return insertOverflow(overflow);
+        BackyardQRContainerType firstBackyardQR(overflow, 0, frontyard.size());
+        BackyardQRContainerType secondBackyardQR(overflow, 1, frontyard.size());
+        lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
+
+        bool retval = insertOverflow(overflow, firstBackyardQR, secondBackyardQR);
+
+        unlockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
+        return retval;
     }
     return true;
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
     constexpr size_t bsize = 16;
     for (size_t j=0; j < num_keys; j+=bsize) {
         for (size_t i=j; i < std::min(num_keys, j+bsize); i++) {
@@ -146,9 +238,9 @@ void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     }
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::queryWhere(std::uint64_t hash) {
-    FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::queryWhereInner(FrontyardQRContainerType frontyardQR) {
+    // FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     std::uint64_t frontyardQuery = frontyard[frontyardQR.bucketIndex].query(frontyardQR);
     if(frontyardQuery != 2) return frontyardQuery;
 
@@ -159,12 +251,19 @@ std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, Fron
     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R);
     BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
     // return (backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR).first || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR).first) | 2; //Return true if find it in either of the backyard buckets
-    return ((backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR) | backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR)) & 1) | 2;
+    // return ((backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR) | backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR)) & 1) | 2;
+    lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
+
+    std::uint64_t retval = queryBackyard(frontyardQR, firstBackyardQR, secondBackyardQR);
+
+    unlockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
+
+    return retval | 2;
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::query(std::uint64_t hash) {
-    FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::queryInner(FrontyardQRContainerType frontyardQR) {
+    // FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     std::uint64_t frontyardQuery = frontyard[frontyardQR.bucketIndex].query(frontyardQR);
     if(frontyardQuery != 2) return frontyardQuery;
     
@@ -177,11 +276,18 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R);
     BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
     // return (backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR).first || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR).first) | 2; //Return true if find it in either of the backyard buckets
-    return backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR) || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR);
+    // return backyard[firstBackyardQR.bucketIndex].query(firstBackyardQR) || backyard[secondBackyardQR.bucketIndex].query(secondBackyardQR);
+    lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
+
+    bool retval = queryBackyard(frontyardQR, firstBackyardQR, secondBackyardQR);
+
+    unlockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
+
+    return retval;
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::queryBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::queryBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
     constexpr size_t bsize = 16;
     for (size_t j=0; j < num_keys; j+=bsize) {
         for (size_t i=j; i < std::min(num_keys, j+bsize); i++) {
@@ -194,19 +300,9 @@ void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     }
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::remove(std::uint64_t hash) {
-    if constexpr (DEBUG)
-        assert(query(hash));
-    FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
-    BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R);
-    BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
-    bool frontyardBucketFull = frontyard[frontyardQR.bucketIndex].full();
-    bool elementInFrontyard = frontyard[frontyardQR.bucketIndex].remove(frontyardQR);
-    if(!frontyardBucketFull) {
-        return elementInFrontyard;
-    }
-    else if (elementInFrontyard) { //In the case we removed it from the frontyard bucket, we need to bring back an element from the backyard (if there is one)
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::removeFromBackyard(FrontyardQRContainerType frontyardQR, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR, bool elementInFrontyard) {
+    if (elementInFrontyard) { //In the case we removed it from the frontyard bucket, we need to bring back an element from the backyard (if there is one)
         //Pretty messy since need to figure out who in the backyard has the key with a smaller miniBucket, since we want to bring the key with the smallest miniBucket index back into the frontyard
         std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
         std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
@@ -246,8 +342,31 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     return true;
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::removeBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::removeInner(FrontyardQRContainerType frontyardQR) {
+    // FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+    BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R);
+    BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
+    bool frontyardBucketFull = frontyard[frontyardQR.bucketIndex].full();
+    bool elementInFrontyard = frontyard[frontyardQR.bucketIndex].remove(frontyardQR);
+    if(!frontyardBucketFull) {
+        return elementInFrontyard;
+    }
+    else {
+        BackyardQRContainerType firstBackyardQR(frontyardQR, 0, frontyard.size());
+        BackyardQRContainerType secondBackyardQR(frontyardQR, 1, frontyard.size());
+        lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
+
+        bool retval = removeFromBackyard(frontyardQR, firstBackyardQR, secondBackyardQR, elementInFrontyard);
+
+        unlockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
+        return retval;
+    }
+    return true;
+}
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::removeBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys) {
     constexpr size_t bsize = 16;
     for (size_t j=0; j < num_keys; j+=bsize) {
         for (size_t i=j; i < std::min(num_keys, j+bsize); i++) {
@@ -260,10 +379,86 @@ void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     }
 }
 
-template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-size_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::getNumBuckets() {
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+size_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::getNumBuckets() {
     return frontyard.size();
 }
+
+
+
+
+
+
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::queryBackyard(FrontyardQRContainerType frontyardQR, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR) {
+    
+    return backyard[firstBackyardQR.bucketIndex].querySimple(firstBackyardQR) || backyard[secondBackyardQR.bucketIndex].querySimple(secondBackyardQR);
+
+}
+
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::insert(std::uint64_t hash) {
+
+    FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+    lockFrontyard(frontyardQR.bucketIndex);
+    // size_t i = frontyardQR.bucketIndex;
+    // frontyard[frontyardQR.bucketIndex & frontyardLockCachelineMask].miniFilter.assertLocked();
+
+    bool retval = insertInner(frontyardQR);
+
+    // assert(i == frontyardQR.bucketIndex);
+    // frontyard[frontyardQR.bucketIndex & frontyardLockCachelineMask].miniFilter.assertLocked();
+
+    unlockFrontyard(frontyardQR.bucketIndex);
+
+    return retval;
+}
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::queryWhere(std::uint64_t hash) {
+    
+    FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+    lockFrontyard(frontyardQR.bucketIndex);
+
+    std::uint64_t retval = queryWhereInner(frontyardQR);
+
+    unlockFrontyard(frontyardQR.bucketIndex);
+
+    return retval;
+
+}
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::query(std::uint64_t hash) {
+    
+    FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+    lockFrontyard(frontyardQR.bucketIndex);
+
+    bool retval = queryInner(frontyardQR);
+
+    unlockFrontyard(frontyardQR.bucketIndex);
+    
+    return retval;
+}
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::remove(std::uint64_t hash) {
+    
+    if constexpr (DEBUG)
+        assert(query(hash));
+    FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+    lockFrontyard(frontyardQR.bucketIndex);
+
+    bool retval = removeInner(frontyardQR);
+
+    unlockFrontyard(frontyardQR.bucketIndex);
+
+    return retval;
+}
+
+
 
 // double PartitionQuotientFilter::getAverageOverflow() {
 //     double overflow = 0.0;

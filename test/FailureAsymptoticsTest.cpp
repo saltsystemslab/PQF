@@ -180,8 +180,8 @@ int main(int argc, char* argv[]) {
     
     for(size_t logN = 26; logN <= 26; logN++) {
     // for(size_t logN = 28; logN <= 28; logN++) {
-        // ft.addTest("PQF_22-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        // ft.addTest("PQF_22-6", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 17, 6, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("PQF_22-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 18, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        // ft.addTest("PQF_22-6", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 18, 6, 32, 32>(generator, N_Filter);}, 1ull << logN);
         // ft.addTest("PQF_22-4", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
         // ft.addTest("PQF_23-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 23, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
         // ft.addTest("PQF_23-4", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 23, 25, 17, 4, 32, 32>(generator, N_Filter);}, 1ull << logN);
@@ -213,8 +213,11 @@ int main(int argc, char* argv[]) {
 
     for(size_t logN = 27; logN <= 30; logN++) {
     // for(size_t logN = 28; logN <= 28; logN++) {
-        ft.addTest("PQF_22-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_22-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 18, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_22-8BB", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 37, 8, 32, 64>(generator, N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_31", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 31, 24, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
         ft.addTest("PQF_52-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 52, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_62-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 62, 50, 34, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
         ft.addTest("PQF16", [&] (size_t N_Filter) -> TestResult {return testPQF<16, 36, 28, 22, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
 
         using OriginalCF12 = CuckooWrapper<size_t, 12>;

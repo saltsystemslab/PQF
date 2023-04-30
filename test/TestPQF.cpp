@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
     // testDPF<46, 51, 35, 8, 64, 64>(generator, N);
     // testDPF<48, 51, 35, 8, 64, 64>(generator, N);
     // testDPF<51, 51, 35, 8, 64, 64>(generator, N);
-    testDPF<8, 22, 25, 17, 8, 32, 32>(generator, N);
+    testDPF<8, 22, 25, 18, 8, 32, 32>(generator, N);
     testDPF<16, 36, 28, 22, 8, 64, 64>(generator, N);
     // testDPF<25, 25, 17, 4, 32, 32>(generator, N);
     // testDPF<25, 25, 17, 4, 32, 32>(generator, N);

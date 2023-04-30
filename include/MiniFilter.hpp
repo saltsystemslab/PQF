@@ -27,7 +27,7 @@ namespace DynamicPrefixFilter {
     //Relies on little endian ordering
     //Definitely not fully optimized, esp given the fact that I'm being generic and allowing any mini filter size rather than basically mini filter has to fit in 2 words (ullongs)
     //TODO: Fix the organization of this (ex make some stuff public, some stuff private etc), and make an interface (this goes for all the things written so far).
-    template<std::size_t NumKeys, std::size_t NumMiniBuckets>
+    template<std::size_t NumKeys, std::size_t NumMiniBuckets, bool Threaded=false>
     struct alignas(1) MiniFilter {
         static constexpr std::size_t NumBits = NumKeys+NumMiniBuckets;
         static constexpr std::size_t NumBytes = (NumKeys+NumMiniBuckets+7)/8;
@@ -38,6 +38,10 @@ namespace DynamicPrefixFilter {
         std::array<uint8_t, NumBytes> filterBytes;
 
         static_assert(NumKeys < 64 && NumBytes <= 16); //Not supporting more cause I don't need it
+
+        static constexpr std::size_t LockMask = 1ull << NumBits;
+        static constexpr std::size_t UnlockMask = ~LockMask;
+        static_assert(!Threaded || (NumBits < NumBytes*8)); //Making sure adding the bit doesn't make the filter bigger!
 
         constexpr MiniFilter() {
             int64_t numBitsNeedToSet = NumMiniBuckets;
@@ -64,6 +68,34 @@ namespace DynamicPrefixFilter {
                 assert(countKeys() == 0);
                 checkCorrectPopCount();
             }
+        }
+
+        void lock() {
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            if constexpr (!Threaded) return;
+            // std::cout << "trying to lock!" << std::endl;
+            while ((__sync_fetch_and_or(fastCastFilter, LockMask) & LockMask) != 0);
+            // std::cout << "locked!" << std::endl;
+        }
+
+        void assertLocked() {
+            if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
+                uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
+                assert(((*fastCastFilter) & LockMask) != 0);
+            }
+        }
+
+        void assertUnlocked() {
+            if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
+                uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
+                assert(((*fastCastFilter) & LockMask) == 0);
+            }
+        }
+
+        void unlock() {
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            if constexpr (!Threaded) return;
+            __sync_fetch_and_and(fastCastFilter, UnlockMask);
         }
 
         bool full() {
