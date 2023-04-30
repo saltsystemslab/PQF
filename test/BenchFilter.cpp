@@ -363,6 +363,11 @@ int main(int argc, char* argv[]) {
         ft.addLoadFactors("PQF_52-8-Batch", [&] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         ft.addLoadFactors("PQF_52-8-FQR-Batch", [&] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 
+        ft.addLoadFactors("PQF_53-8", [&] (double lf) -> TestResult {return benchPQF<8, 53, 51, 35, 8, 64, 64>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_53-8-FQR", [&] (double lf) -> TestResult {return benchPQF<8, 53, 51, 35, 8, 64, 64, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_53-8-Batch", [&] (double lf) -> TestResult {return benchPQF<8, 53, 51, 35, 8, 64, 64, false, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_53-8-FQR-Batch", [&] (double lf) -> TestResult {return benchPQF<8, 53, 51, 35, 8, 64, 64, true, true>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+
 
         ft.addLoadFactors("PQF16", [&] (double lf) -> TestResult {return benchPQF<16, 36, 28, 22, 8, 64, 64, false, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.85, 0.05);
         ft.addLoadFactors("PQF16-FRQ", [&] (double lf) -> TestResult {return benchPQF<16, 36, 28, 22, 8, 64, 64, true, false>(generator, 1ull << logN, lf);}, 1ull << logN, 0.05, 0.85, 0.05);
