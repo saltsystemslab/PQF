@@ -158,7 +158,9 @@ namespace DynamicPrefixFilter {
         
         private:
             AlignedVector<FrontyardBucketType, 64> frontyard;
+            // std::vector<FrontyardBucketType> frontyard;
             AlignedVector<BackyardBucketType, 64> backyard;
+            // std::vector<BackyardBucketType> backyard;
 
     };
 
@@ -169,6 +171,8 @@ namespace DynamicPrefixFilter {
             PartitionQuotientFilter& operator=(const PartitionQuotientFilter& a) = delete;
             PartitionQuotientFilter(PartitionQuotientFilter&& a) = delete;
             PartitionQuotientFilter& operator=(PartitionQuotientFilter&& a) = delete;
+
+            //Deletion is still default but here its important to not delete until you're actually done operating with all your threads!
     };
 }
 

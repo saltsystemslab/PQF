@@ -163,6 +163,7 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
         assert(backyardToFrontyard[std::make_pair(firstBackyardQR.bucketIndex, firstBackyardQR.whichFrontyardBucket)] == overflow.bucketIndex);
         assert(backyardToFrontyard[std::make_pair(secondBackyardQR.bucketIndex, secondBackyardQR.whichFrontyardBucket)] == overflow.bucketIndex);
     }
+    
     std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
     std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
     
@@ -212,8 +213,8 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     }
     if(overflow.miniBucketIndex != -1ull) {
         // overflows[frontyardQR.bucketIndex]++;
-        BackyardQRContainerType firstBackyardQR(overflow, 0, frontyard.size());
-        BackyardQRContainerType secondBackyardQR(overflow, 1, frontyard.size());
+        BackyardQRContainerType firstBackyardQR(overflow, 0, R);
+        BackyardQRContainerType secondBackyardQR(overflow, 1, R);
         lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
 
         bool retval = insertOverflow(overflow, firstBackyardQR, secondBackyardQR);
@@ -353,8 +354,8 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
         return elementInFrontyard;
     }
     else {
-        BackyardQRContainerType firstBackyardQR(frontyardQR, 0, frontyard.size());
-        BackyardQRContainerType secondBackyardQR(frontyardQR, 1, frontyard.size());
+        BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R);
+        BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
         lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
 
         bool retval = removeFromBackyard(frontyardQR, firstBackyardQR, secondBackyardQR, elementInFrontyard);
