@@ -141,7 +141,7 @@ void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
             __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
         }
         for(size_t i=j; i < std::min(num_keys, j+bsize); i++) {
-            insert(hashes[i]);
+            status[i] = insert(hashes[i]);
         }
     }
 }
