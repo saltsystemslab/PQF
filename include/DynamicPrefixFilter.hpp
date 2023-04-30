@@ -47,7 +47,7 @@ namespace DynamicPrefixFilter {
             std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> backyardToFrontyard; //Comment this out when done with testing I guess?
             // std::vector<size_t> overflows;
             FrontyardQRContainerType getQRPairFromHash(std::uint64_t hash);
-            void insertOverflow(FrontyardQRContainerType overflow);
+            bool insertOverflow(FrontyardQRContainerType overflow);
         
         public:
             bool insertFailure = false;
@@ -61,7 +61,7 @@ namespace DynamicPrefixFilter {
             std::size_t capacity;
             std::size_t range;
             PartitionQuotientFilter(std::size_t N, bool Normalize = true);
-            void insert(std::uint64_t hash);
+            bool insert(std::uint64_t hash);
             void insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys); //Really lazy and not super optimized implementation just to show that morton filters can easily be beaten
             std::uint64_t queryWhere(std::uint64_t hash); //also queries where the item is (backyard or frontyard)
             bool query(std::uint64_t hash);

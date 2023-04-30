@@ -65,7 +65,7 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
 }
 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insertOverflow(FrontyardQRContainerType overflow) {
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insertOverflow(FrontyardQRContainerType overflow) {
     BackyardQRContainerType firstBackyardQR(overflow, 0, R);
     BackyardQRContainerType secondBackyardQR(overflow, 1, R);
     if constexpr (DEBUG) {
@@ -110,15 +110,16 @@ void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
                 failureWFB = firstBackyardQR.whichFrontyardBucket;
             }
             else {
-                backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR);
+                return backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
             }
         }
         // assert(query(hash));
     }
+    return true;
 }
 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insert(std::uint64_t hash) {
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery>::insert(std::uint64_t hash) {
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     FrontyardQRContainerType overflow = frontyard[frontyardQR.bucketIndex].insert(frontyardQR);
     if constexpr (DEBUG) {
@@ -126,8 +127,9 @@ void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     }
     if(overflow.miniBucketIndex != -1ull) {
         // overflows[frontyardQR.bucketIndex]++;
-        insertOverflow(overflow);
+        return insertOverflow(overflow);
     }
+    return true;
 }
 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
