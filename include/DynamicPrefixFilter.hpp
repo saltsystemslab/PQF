@@ -107,7 +107,7 @@ namespace DynamicPrefixFilter {
             using BackyardBucketType = Bucket<SizeRemainders + 4, BackyardBucketCapacity, BucketNumMiniBuckets, WrappedBackyardQRContainerType, BackyardBucketSize, FastSQuery, Threaded>;
             static_assert(sizeof(BackyardBucketType) == BackyardBucketSize);
 
-            static constexpr double NormalizingFactor = (double)FrontyardBucketCapacity / (double) BucketNumMiniBuckets * (double)(1+FrontyardToBackyardRatio)/(FrontyardToBackyardRatio);
+            static constexpr double NormalizingFactor = (double)FrontyardBucketCapacity / (double) BucketNumMiniBuckets * (double)(1+FrontyardToBackyardRatio*FrontyardBucketSize/BackyardBucketSize)/(FrontyardToBackyardRatio*FrontyardBucketSize/BackyardBucketSize);
 
             static constexpr uint64_t HashMask = (1ull << SizeRemainders) - 1;
 
