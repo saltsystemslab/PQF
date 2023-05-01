@@ -165,16 +165,17 @@ namespace DynamicPrefixFilter {
     };
 
 
-    template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
-    class PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, true>: public PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, false> {
-        public:
-            using PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, false>::PartitionQuotientFilter;
-            PartitionQuotientFilter& operator=(const PartitionQuotientFilter& a) = delete;
-            PartitionQuotientFilter(PartitionQuotientFilter&& a) = delete;
-            PartitionQuotientFilter& operator=(PartitionQuotientFilter&& a) = delete;
+    // template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
+    // class PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, true>: public PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, false> {
+    //     static_assert(!Threaded);
+    //     public:
+    //         using PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, false>::PartitionQuotientFilter;
+    //         PartitionQuotientFilter& operator=(const PartitionQuotientFilter& a) = delete;
+    //         PartitionQuotientFilter(PartitionQuotientFilter&& a) = delete;
+    //         PartitionQuotientFilter& operator=(PartitionQuotientFilter&& a) = delete;
 
-            //Deletion is still default but here its important to not delete until you're actually done operating with all your threads!
-    };
+    //         //Deletion is still default but here its important to not delete until you're actually done operating with all your threads!
+    // };
 }
 
 #endif
