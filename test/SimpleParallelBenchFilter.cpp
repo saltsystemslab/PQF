@@ -276,7 +276,7 @@ class FilterTester {
                     string bfolder = folder + "/" + filterName+"/";
                     ofstream fout(bfolder+to_string(Ns[i]), std::ios_base::app);
                     
-                    cout << test << " " << i << endl;
+                    // cout << test << " " << i << " (" << filterName << ")" << endl;
                     TestResult t = benchFunctions[i]();
                     // testResults[i].push_back();
                     fout << t.lf << " " << t.insertTime << " " << t.successfulQueryTime << " " << t.randomQueryTime << " " << t.removeTime << " " << t.falsePositiveRate << " " << t.sizeFilter << " " << t.sBLR << " " << t.rBLR << "\n";

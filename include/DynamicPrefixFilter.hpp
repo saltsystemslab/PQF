@@ -111,11 +111,13 @@ namespace DynamicPrefixFilter {
 
             static constexpr uint64_t HashMask = (1ull << SizeRemainders) - 1;
 
-            static constexpr std::size_t frontyardLockCachelineMask = ~((1ull << ((64/FrontyardBucketSize) - 1)) - 1); //So that if multiple buckets in same cacheline, we always pick the same one to lock to not get corruption.
+            static_assert(64 % FrontyardBucketSize == 0 && 64 % BackyardBucketSize == 0);
+
+            static constexpr std::size_t frontyardLockCachelineMask = ~(64ull / FrontyardBucketSize - 1); //So that if multiple buckets in same cacheline, we always pick the same one to lock to not get corruption.
             inline void lockFrontyard(std::size_t i);
             inline void unlockFrontyard(std::size_t i);
 
-            static constexpr std::size_t backyardLockCachelineMask = ~((1ull << ((64/BackyardBucketSize) - 1)) - 1);
+            static constexpr std::size_t backyardLockCachelineMask = ~(64ull / BackyardBucketSize - 1);
             inline void lockBackyard(std::size_t i1, std::size_t i2);
             inline void unlockBackyard(std::size_t i1, std::size_t i2);
             
