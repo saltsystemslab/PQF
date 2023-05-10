@@ -215,9 +215,9 @@ int main(int argc, char* argv[]) {
 
     for(size_t logN = 15; logN <= 30; logN++) {
     // for(size_t logN = 28; logN <= 28; logN++) {
-        ft.addTest("PQF_22-8", [] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 18, 8, 32, 32>(N_Filter);}, 1ull << logN);
-        ft.addTest("PQF_22-8BB", [] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 37, 8, 32, 64>(N_Filter);}, 1ull << logN);
-        ft.addTest("PQF_31", [] (size_t N_Filter) -> TestResult {return testPQF<8, 31, 24, 17, 8, 32, 32>(N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_22-8", [] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 26, 18, 8, 32, 32>(N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_22-8BB", [] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 26, 37, 8, 32, 64>(N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_31", [] (size_t N_Filter) -> TestResult {return testPQF<8, 31, 25, 17, 8, 32, 32>(N_Filter);}, 1ull << logN);
         ft.addTest("PQF_53-8", [] (size_t N_Filter) -> TestResult {return testPQF<8, 53, 51, 35, 8, 64, 64>(N_Filter);}, 1ull << logN);
         ft.addTest("PQF_62-8", [] (size_t N_Filter) -> TestResult {return testPQF<8, 62, 50, 34, 8, 64, 64>(N_Filter);}, 1ull << logN);
         ft.addTest("PQF16", [] (size_t N_Filter) -> TestResult {return testPQF<16, 36, 28, 22, 8, 64, 64>(N_Filter);}, 1ull << logN);
