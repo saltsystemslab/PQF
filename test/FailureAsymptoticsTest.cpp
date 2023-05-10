@@ -33,7 +33,9 @@ struct TestResult { //Times are all in microseconds for running not one test but
 
 //max ratio is the ratio of how much space you make for filter items to how many items you actually insert
 template<typename FT, bool CanDelete = true>
-TestResult testInsertsUntilFull(mt19937& generator, size_t N_Filter) {
+TestResult testInsertsUntilFull(size_t N_Filter) {
+    random_device rd;
+    mt19937 generator (rd());
     TestResult res;
     res.N_Filter = N_Filter;
 
@@ -65,9 +67,9 @@ TestResult testInsertsUntilFull(mt19937& generator, size_t N_Filter) {
 }
 
 template<std::size_t SizeRemainder, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
-TestResult testPQF(mt19937& generator, size_t N) {
+TestResult testPQF(size_t N) {
     using FilterType = DynamicPrefixFilter::PartitionQuotientFilter<SizeRemainder, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>;
-    return testInsertsUntilFull<FilterType, true>(generator, N);
+    return testInsertsUntilFull<FilterType, true>(N);
 }
 
 class FilterTester {
@@ -105,7 +107,7 @@ class FilterTester {
                 filesystem::create_directory("results");
             }
             
-            string folder = "results/FailureTestAll/Test5NormalizedOldHash/";
+            string folder = "results/FailureTestAll/Test6NormalizedOldHash/";
 
             if(!filesystem::exists(folder)) { //Todo: look up how to do this recursively easily (or do it yourself)
                 filesystem::create_directory(folder);
@@ -213,17 +215,17 @@ int main(int argc, char* argv[]) {
 
     for(size_t logN = 15; logN <= 30; logN++) {
     // for(size_t logN = 28; logN <= 28; logN++) {
-        ft.addTest("PQF_22-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 18, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        ft.addTest("PQF_22-8BB", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 37, 8, 32, 64>(generator, N_Filter);}, 1ull << logN);
-        ft.addTest("PQF_31", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 31, 24, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN);
-        ft.addTest("PQF_52-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 52, 51, 35, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        ft.addTest("PQF_62-8", [&] (size_t N_Filter) -> TestResult {return testPQF<8, 62, 50, 34, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
-        ft.addTest("PQF16", [&] (size_t N_Filter) -> TestResult {return testPQF<16, 36, 28, 22, 8, 64, 64>(generator, N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_22-8", [] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 18, 8, 32, 32>(N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_22-8BB", [] (size_t N_Filter) -> TestResult {return testPQF<8, 22, 25, 37, 8, 32, 64>(N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_31", [] (size_t N_Filter) -> TestResult {return testPQF<8, 31, 24, 17, 8, 32, 32>(N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_53-8", [] (size_t N_Filter) -> TestResult {return testPQF<8, 53, 51, 35, 8, 64, 64>(N_Filter);}, 1ull << logN);
+        ft.addTest("PQF_62-8", [] (size_t N_Filter) -> TestResult {return testPQF<8, 62, 50, 34, 8, 64, 64>(N_Filter);}, 1ull << logN);
+        ft.addTest("PQF16", [] (size_t N_Filter) -> TestResult {return testPQF<16, 36, 28, 22, 8, 64, 64>(N_Filter);}, 1ull << logN);
 
         using OriginalCF12 = CuckooWrapper<size_t, 12>;
-        ft.addTest("OrigCF12", [&] (size_t N_Filter) -> TestResult {return testInsertsUntilFull<OriginalCF12>(generator, N_Filter);}, 1ull << logN);
+        ft.addTest("OrigCF12", [] (size_t N_Filter) -> TestResult {return testInsertsUntilFull<OriginalCF12>(N_Filter);}, 1ull << logN);
 
-        ft.addTest("VQF", [&] (size_t N_Filter) -> TestResult {return testInsertsUntilFull<VQFWrapper>(generator, N_Filter);}, 1ull << logN);
+        ft.addTest("VQF", [] (size_t N_Filter) -> TestResult {return testInsertsUntilFull<VQFWrapper>(N_Filter);}, 1ull << logN);
     }
     // for(size_t logN = 27; logN <= 30; logN++) {
     //     ft.addTest("PQF_22_25_17_8_32_32", [&] (size_t N_Filter) -> TestResult {return testPQF<22, 25, 17, 8, 32, 32>(generator, N_Filter);}, 1ull << logN, 1000);
