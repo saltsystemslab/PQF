@@ -68,14 +68,15 @@ def analyzeFolder(idir, odir):
                     continue
                 lf = float(lw[0])
                 if lf not in stats:
-                    stats[lf] = [0, 0, 0, 0, 0, 0, 0]
+                    stats[lf] = [0, 0, 0, 0, 0, 0, 0, 0]
                 stats[lf][0] += int(lw[1])
                 stats[lf][1] += int(lw[2])
                 stats[lf][2] += int(lw[3])
                 stats[lf][3] += int(lw[4])
-                stats[lf][4] += float(lw[5])
-                stats[lf][5] += int(lw[6])
-                stats[lf][6] += 1
+                stats[lf][4] += int(lw[5])
+                stats[lf][5] += float(lw[6])
+                stats[lf][6] += int(lw[7])
+                stats[lf][7] += 1
                 # Ns.append(float(lw[0]))
                 # inserts.append(int(lw[1]))
                 # squeries.append(int(lw[2]))
@@ -91,6 +92,7 @@ def analyzeFolder(idir, odir):
             squeries = []
             rqueries = []
             removals = []
+            mixed = []
             fpr = []
             sizePerKey = []
             efficiency = []
@@ -100,20 +102,25 @@ def analyzeFolder(idir, odir):
             for ns, s in dict(sorted(stats.items())).items():
                 # Ns.append(ns)
                 lfs.append(ns)
-                itime = (s[0] - pstat[0])/(s[6]*N*(ns-pns))
+                itime = (s[0] - pstat[0])/(s[7]*N*(ns-pns))
                 inserts.append(1 / itime) #so 1000000 / itime would be #items inserted per second, but we want million items / sec
-                sqtime = s[1]/(s[6]*N*ns)
+                sqtime = s[1]/(s[7]*N*ns)
                 squeries.append(1/ sqtime)
-                rqtime = s[2]/(s[6]*N*ns)
+                rqtime = s[2]/(s[7]*N*ns)
                 rqueries.append(1 / rqtime)
-                rmtime = (s[3] - pstat[3])/(s[6]*N*(ns-pns))
+                rmtime = (s[3] - pstat[3])/(s[7]*N*(ns-pns))
                 if rmtime < .00001 or rmtime > 100000:
                     removals.append(0)
                 else:
                     removals.append(1/rmtime)
-                fpr.append(s[4] / s[6])
-                sizePerKey.append(8*s[5] / (s[6]*N*ns))
-                if s[4] == 0:
+                mixedTime = s[4]/(s[7]*N*ns)
+                if mixedTime < .00001 or mixedTime > 100000:
+                    mixed.append(0)
+                else:
+                    mixed.append(4/mixedTime)
+                fpr.append(s[5] / s[7])
+                sizePerKey.append(8*s[6] / (s[7]*N*ns))
+                if s[5] == 0:
                     print(ftype)
                     print(N)
                     print(ns)
@@ -129,6 +136,7 @@ def analyzeFolder(idir, odir):
             plotStastic(upperf + "squerypics/"+ftype, upperf + "squeries/"+ftype, Ns, squeries)
             plotStastic(upperf + "rquerypics/"+ftype, upperf + "rqueries/"+ftype, Ns, rqueries)
             plotStastic(upperf + "removalpics/"+ftype, upperf + "removals/"+ftype, Ns, removals)
+            plotStastic(upperf + "mixedpics/"+ftype, upperf + "mixed/"+ftype, Ns, mixed)
             plotStastic(upperf + "fprpics/"+ftype, upperf + "fpr/"+ftype, Ns, fpr)
             plotStastic(upperf + "sizepics/"+ftype, upperf + "sizes/"+ftype, Ns, sizePerKey)
             plotStastic(upperf + "efficiencypics/"+ftype, upperf + "efficiency/"+ftype, lfs, efficiency)

@@ -22,6 +22,7 @@ struct TestResult { //Times are all in microseconds for running not one test but
     size_t randomQueryTime;
     double falsePositiveRate;
     size_t removeTime;
+    size_t mixedTime;
     double lf;
     size_t sizeFilter;
     size_t N;
@@ -35,6 +36,22 @@ void insertItems(FT& filter, vector<size_t>& keys, size_t start, size_t end) {
     // std::cout << "start: " << start << ", end: " << end << std::endl;
     for(size_t i{start}; i < end; i++) {
         filter.insert(keys[i]);
+    }
+}
+
+template<typename FT>
+void mixedItems(FT& filter, vector<size_t>& keys, vector<size_t>& extraKeys, vector<size_t>& randomKeys, size_t start, size_t end) {
+    // std::cout << "start: " << start << ", end: " << end << std::endl;
+    size_t f = 0l; //Just to ensure compiler does not optimize away the code
+    for(size_t i{start}; i < end; i++) {
+        filter.insert(extraKeys[i]);
+        //using a different index to be reasonably sure its not in cache when its removed
+        f += filter.query(keys[(end-i-1)+start]); //Might be a successful query, might be not (starts of successful since haven't inserted at the end, moves to random later)
+        f += filter.query(randomKeys[i]);
+        filter.remove(keys[i]);
+    }
+    if(f < 10){
+        exit(-1);
     }
 }
 
@@ -84,6 +101,7 @@ TestResult benchFilter(size_t N, double ratio, size_t numThreads = 1) {
     N = res.N;
 
     vector<size_t> keys(N);
+    vector<size_t> extraKeys(N);
     vector<size_t> FPRkeys(N);
     constexpr size_t batchSize = 128;
     vector<size_t> batch(batchSize);
@@ -92,6 +110,7 @@ TestResult benchFilter(size_t N, double ratio, size_t numThreads = 1) {
     for(size_t i{0}; i < N; i++) {
         keys[i] = keyDist(generator) % filter.range;
         FPRkeys[i] = keyDist(generator) % filter.range;
+        extraKeys[i] = keyDist(generator) % filter.range;
     }
     // this_thread::sleep_for(chrono::seconds(delayBetweenTests)); //Just sleep to try to keep turbo boost to full
 
@@ -193,11 +212,44 @@ TestResult benchFilter(size_t N, double ratio, size_t numThreads = 1) {
         end = chrono::high_resolution_clock::now();
         duration = chrono::duration_cast<chrono::microseconds>(end-start);
         res.removeTime = (size_t)duration.count();
-        // cout << "removed" << endl;
+
+
+
+        //MIXED workload testing. Innefficient but first reinsert all the keys
+        if (numThreads > 1) {
+            std::vector<std::thread> threads;
+            for(size_t i = 0; i < numThreads; i++) {
+                // std::cout << i << std::endl;
+                threads.push_back(std::thread([&, i] () -> void {insertItems(filter, keys, (i*N) / numThreads, ((i+1)*N) / numThreads);}));
+            }
+            for(auto& th: threads) {
+                th.join();
+            }
+        }
+        else {
+            insertItems(filter, keys, 0, N);
+        }
+        start = chrono::high_resolution_clock::now();
+        if (numThreads > 1) { //Somewhat complicated to add this
+            std::vector<std::thread> threads;
+            for(size_t i = 0; i < numThreads; i++) {
+                threads.push_back(std::thread([&, i] () -> void {mixedItems(filter, keys, extraKeys, FPRkeys, (i*N) / numThreads, ((i+1)*N) / numThreads);}));
+            }
+            for(auto& th: threads){
+                th.join();
+            }
+        }
+        else {
+            mixedItems(filter, keys, extraKeys, FPRkeys, 0, N);
+        }
+        end = chrono::high_resolution_clock::now();
+        duration = chrono::duration_cast<chrono::microseconds>(end-start);
+        res.mixedTime = (size_t)duration.count();
     }
     else {
         // res.removeTime = numeric_limits<double>::infinity();
         res.removeTime = -1ull;
+        res.mixedTime = -1ull;
     }
 
     return res;
@@ -283,7 +335,7 @@ class FilterTester {
                     // cout << test << " " << i << " (" << filterName << ")" << endl;
                     TestResult t = benchFunctions[i]();
                     // testResults[i].push_back();
-                    fout << t.lf << " " << t.insertTime << " " << t.successfulQueryTime << " " << t.randomQueryTime << " " << t.removeTime << " " << t.falsePositiveRate << " " << t.sizeFilter << " " << t.sBLR << " " << t.rBLR << "\n";
+                    fout << t.lf << " " << t.insertTime << " " << t.successfulQueryTime << " " << t.randomQueryTime << " " << t.removeTime << " " << t.mixedTime << " " << t.falsePositiveRate << " " << t.sizeFilter << " " << t.sBLR << " " << t.rBLR << "\n";
                     // fileOutputs[i] << testResults[i][test].N << "," << testResults[i][test].sizeFilter << "," << testResults[i][test].insertTime << "," << testResults[i][test].successfulQueryTime << "," << testResults[i][test].randomQueryTime << "," << testResults[i][test].falsePositiveRate << "," << testResults[i][test].removeTime << endl;
                     // this_thread::sleep_for(chrono::seconds(delayBetweenFilters));
                 }
@@ -411,10 +463,10 @@ int main(int argc, char* argv[]) {
         // ft.addLoadFactors("PQF_52-8-FQR", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         // ft.addLoadFactors("PQF_52-8-Batch", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         // ft.addLoadFactors("PQF_52-8-FQR-Batch", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("PQF_52-8-1T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("PQF_52-8-2T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 2);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("PQF_52-8-4T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 4);}, 1ull << logN, 0.05, 0.9, 0.05);
-        ft.addLoadFactors("PQF_52-8-8T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 8);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("PQF_52-8-1T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("PQF_52-8-2T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 2);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("PQF_52-8-4T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 4);}, 1ull << logN, 0.05, 0.9, 0.05);
+        // ft.addLoadFactors("PQF_52-8-8T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 8);}, 1ull << logN, 0.05, 0.9, 0.05);
         ft.addLoadFactors("PQF_52-8-FQR-1T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         ft.addLoadFactors("PQF_52-8-FQR-2T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, false, true>(1ull << logN, lf, 2);}, 1ull << logN, 0.05, 0.9, 0.05);
         ft.addLoadFactors("PQF_52-8-FQR-4T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, false, true>(1ull << logN, lf, 4);}, 1ull << logN, 0.05, 0.9, 0.05);
@@ -435,10 +487,10 @@ int main(int argc, char* argv[]) {
 
 
         ft.addLoadFactors("PQF16", [logN] (double lf) -> TestResult {return benchPQF<16, 36, 28, 22, 8, 64, 64, false, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.85, 0.05);
-        ft.addLoadFactors("PQF16-1T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, false, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.85, 0.05);
-        ft.addLoadFactors("PQF16-2T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, false, false, true>(1ull << logN, lf, 2);}, 1ull << logN, 0.05, 0.85, 0.05);
-        ft.addLoadFactors("PQF16-4T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, false, false, true>(1ull << logN, lf, 4);}, 1ull << logN, 0.05, 0.85, 0.05);
-        ft.addLoadFactors("PQF16-8T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, false, false, true>(1ull << logN, lf, 8);}, 1ull << logN, 0.05, 0.85, 0.05);
+        // ft.addLoadFactors("PQF16-1T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, false, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.85, 0.05);
+        // ft.addLoadFactors("PQF16-2T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, false, false, true>(1ull << logN, lf, 2);}, 1ull << logN, 0.05, 0.85, 0.05);
+        // ft.addLoadFactors("PQF16-4T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, false, false, true>(1ull << logN, lf, 4);}, 1ull << logN, 0.05, 0.85, 0.05);
+        // ft.addLoadFactors("PQF16-8T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, false, false, true>(1ull << logN, lf, 8);}, 1ull << logN, 0.05, 0.85, 0.05);
         ft.addLoadFactors("PQF16-FRQ", [logN] (double lf) -> TestResult {return benchPQF<16, 36, 28, 22, 8, 64, 64, true, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.85, 0.05);
         ft.addLoadFactors("PQF16-FRQ-1T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, true, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.85, 0.05);
         ft.addLoadFactors("PQF16-FRQ-2T", [logN] (double lf) -> TestResult {return benchPQF<16, 35, 28, 22, 8, 64, 64, true, false, true>(1ull << logN, lf, 2);}, 1ull << logN, 0.05, 0.85, 0.05);
@@ -460,8 +512,8 @@ int main(int argc, char* argv[]) {
         using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
         ft.addLoadFactors("PF-BBFF", [logN] (double lf) -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
-        ft.addLoadFactors("TC", [logN] (double lf) -> TestResult {return benchFilter<TC_Wrapper, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        // using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
+        // ft.addLoadFactors("TC", [logN] (double lf) -> TestResult {return benchFilter<TC_Wrapper, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
         using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
         ft.addLoadFactors("CF-12-Flex", [logN] (double lf) -> TestResult {return benchFilter<CFF12_Wrapper, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
