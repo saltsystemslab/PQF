@@ -343,7 +343,7 @@ int main(int argc, char* argv[]) {
         NumTests = atoi(argv[2]);
     }
     FilterTester ft;
-    string ofolder = "LoadFactorPerformanceTest/7950xTry9";
+    string ofolder = "LoadFactorPerformanceTest/7950xTry10";
     // constexpr size_t DelayBetweenTests = 15; //really should be like subtest
     // constexpr size_t DelayBetweenFilters = 0;
 
@@ -400,17 +400,25 @@ int main(int argc, char* argv[]) {
         // ft.addLoadFactors("PQF_22-8BB", [logN] (double lf) -> TestResult {return benchPQF<8, 22, 25, 37, 8, 32, 64>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
         // ft.addLoadFactors("PQF_22-8BB-FQR", [logN] (double lf) -> TestResult {return benchPQF<8, 22, 25, 37, 8, 32, 64, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
 
-        // ft.addLoadFactors("PQF_31-8", [logN] (double lf) -> TestResult {return benchPQF<8, 31, 24, 17, 8, 32, 32>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
-        // ft.addLoadFactors("PQF_31-8-FQR", [logN] (double lf) -> TestResult {return benchPQF<8, 31, 24, 17, 8, 32, 32, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("PQF_31-8", [logN] (double lf) -> TestResult {return benchPQF<8, 31, 24, 17, 8, 32, 32>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
+        ft.addLoadFactors("PQF_31-8-FQR", [logN] (double lf) -> TestResult {return benchPQF<8, 31, 24, 17, 8, 32, 32, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.8, 0.05);
 
         
-        // ft.addLoadFactors("PQF_62-8", [logN] (double lf) -> TestResult {return benchPQF<8, 62, 50, 34, 8, 64, 64>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
-        // ft.addLoadFactors("PQF_62-8-FQR", [logN] (double lf) -> TestResult {return benchPQF<8, 62, 50, 34, 8, 64, 64, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_62-8", [logN] (double lf) -> TestResult {return benchPQF<8, 62, 50, 34, 8, 64, 64>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_62-8-FQR", [logN] (double lf) -> TestResult {return benchPQF<8, 62, 50, 34, 8, 64, 64, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 
         // ft.addLoadFactors("PQF_52-8", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         // ft.addLoadFactors("PQF_52-8-FQR", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         // ft.addLoadFactors("PQF_52-8-Batch", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         // ft.addLoadFactors("PQF_52-8-FQR-Batch", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_52-8-1T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_52-8-2T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 2);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_52-8-4T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 4);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_52-8-8T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf, 8);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_52-8-FQR-1T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_52-8-FQR-2T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, false, true>(1ull << logN, lf, 2);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_52-8-FQR-4T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, false, true>(1ull << logN, lf, 4);}, 1ull << logN, 0.05, 0.9, 0.05);
+        ft.addLoadFactors("PQF_52-8-FQR-8T", [logN] (double lf) -> TestResult {return benchPQF<8, 52, 51, 35, 8, 64, 64, true, false, true>(1ull << logN, lf, 8);}, 1ull << logN, 0.05, 0.9, 0.05);
 
         ft.addLoadFactors("PQF_53-8", [logN] (double lf) -> TestResult {return benchPQF<8, 53, 51, 35, 8, 64, 64>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
         // ft.addLoadFactors("PQF_53-8-1T", [logN] (double lf) -> TestResult {return benchPQF<8, 53, 51, 35, 8, 64, 64, false, false, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
@@ -442,24 +450,24 @@ int main(int argc, char* argv[]) {
         ft.addLoadFactors("VQF", [logN] (double lf) -> TestResult {return benchFilter<VQFWrapper, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);
 
 
-        // using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
-        // ft.addLoadFactors("PF-TC", [logN] (double lf) -> TestResult {return benchFilter<PF_TC_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
+        ft.addLoadFactors("PF-TC", [logN] (double lf) -> TestResult {return benchFilter<PF_TC_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        // using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
-        // using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
-        // ft.addLoadFactors("PF-CF12F", [logN] (double lf) -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+        using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
+        ft.addLoadFactors("PF-CF12F", [logN] (double lf) -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        // using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
-        // ft.addLoadFactors("PF-BBFF", [logN] (double lf) -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+        ft.addLoadFactors("PF-BBFF", [logN] (double lf) -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        // using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
-        // ft.addLoadFactors("TC", [logN] (double lf) -> TestResult {return benchFilter<TC_Wrapper, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
+        ft.addLoadFactors("TC", [logN] (double lf) -> TestResult {return benchFilter<TC_Wrapper, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        // using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
-        // ft.addLoadFactors("CF-12-Flex", [logN] (double lf) -> TestResult {return benchFilter<CFF12_Wrapper, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
+        ft.addLoadFactors("CF-12-Flex", [logN] (double lf) -> TestResult {return benchFilter<CFF12_Wrapper, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
-        // using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
-        // ft.addLoadFactors("BBF-Flex", [logN] (double lf) -> TestResult {return benchFilter<BBFF_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
+        using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
+        ft.addLoadFactors("BBF-Flex", [logN] (double lf) -> TestResult {return benchFilter<BBFF_Wrapper, false>(1ull << logN, lf);}, 1ull << logN, 0.05, 1.0, 0.05);
 
         using OriginalCF12 = CuckooWrapper<size_t, 12>;
         ft.addLoadFactors("OrigCF12", [logN] (double lf) -> TestResult {return benchFilter<OriginalCF12, true>(1ull << logN, lf);}, 1ull << logN, 0.05, 0.9, 0.05);

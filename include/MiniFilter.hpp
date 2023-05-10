@@ -39,7 +39,7 @@ namespace DynamicPrefixFilter {
 
         static_assert(NumKeys < 64 && NumBytes <= 16); //Not supporting more cause I don't need it
 
-        static constexpr std::size_t LockMask = 1ull << NumBits;
+        static constexpr std::size_t LockMask = 1ull << (NumBits%64);
         static constexpr std::size_t UnlockMask = ~LockMask;
         static_assert(!Threaded || (NumBits < NumBytes*8)); //Making sure adding the bit doesn't make the filter bigger!
 
@@ -71,7 +71,7 @@ namespace DynamicPrefixFilter {
         }
 
         void lock() {
-            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes) + NumUllongs-1;
             if constexpr (!Threaded) return;
             // std::cout << "trying to lock!" << std::endl;
             while ((__sync_fetch_and_or(fastCastFilter, LockMask) & LockMask) != 0);
@@ -93,7 +93,7 @@ namespace DynamicPrefixFilter {
         }
 
         void unlock() {
-            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes) + NumUllongs-1;
             if constexpr (!Threaded) return;
             __sync_fetch_and_and(fastCastFilter, UnlockMask);
         }
