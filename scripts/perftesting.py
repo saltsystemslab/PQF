@@ -43,10 +43,15 @@ if test == "All":
     tests = ["ST", "Batch", "MT"] #laziness oops
 
 previously_threaded = available_tests[tests[0]][0]
+# if make == "yes":
+#     subprocess.run(f"python3 buildscript.py -vt {previously_threaded}", shell=True)
+# elif make == "clean":
+#     subprocess.run(f"python3 buildscript.py -clean True -vt {previously_threaded}", shell=True)
+
 if make == "yes":
-    subprocess.run(f"python3 buildscript.py -vt {previously_threaded}", shell=True)
+    subprocess.run(f"python3 buildscript.py", shell=True)
 elif make == "clean":
-    subprocess.run(f"python3 buildscript.py -clean True -vt {previously_threaded}", shell=True)
+    subprocess.run(f"python3 buildscript.py -clean True", shell=True)
 
 current_path = os.path.dirname(__file__)
 rel_exec_path = "../build/BenchFilter"
