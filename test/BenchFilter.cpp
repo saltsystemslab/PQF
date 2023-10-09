@@ -380,8 +380,6 @@ auto getFilters(size_t numThreads) {
         filters["PQF16-Batch"] = [] (size_t N, double lf) -> TestResult {return benchPQF<16, 36, 28, 22, 8, 64, 64, false, true>(N, lf);};
         filters["PQF16-FRQ-Batch"] = [] (size_t N, double lf) -> TestResult {return benchPQF<16, 36, 28, 22, 8, 64, 64, true, true>(N, lf);};
 
-        filters["VQF"] = [] (size_t N, double lf) -> TestResult {return benchFilter<VQFWrapper, true>(N, lf);};
-
 
         using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
         filters["PF-TC"] = [] (size_t N, double lf) -> TestResult {return benchFilter<PF_TC_Wrapper, false>(N, lf);};
@@ -415,7 +413,7 @@ auto getFilters(size_t numThreads) {
         filters["Morton18-Batch"] = [] (size_t N, double lf) -> TestResult {return benchFilter<MortonWrapper<CompressedCuckoo::Morton3_18>, true, false, true>(N, lf);};
     }
 
-
+    filters["VQF"] = [numThreads] (size_t N, double lf) -> TestResult {return benchFilter<VQFWrapper, true>(N, lf, numThreads);}; //be careful with this one as with >1 thread gotta recompile it
 
     filters["PQF_21-8-T"] = [numThreads] (size_t N, double lf) -> TestResult {return benchPQF<8, 21, 26, 18, 8, 32, 32, false, false, true>(N, lf, numThreads);};
     

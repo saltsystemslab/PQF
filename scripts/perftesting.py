@@ -42,18 +42,19 @@ tests = [test]
 if test == "All":
     tests = ["ST", "Batch", "MT"] #laziness oops
 
-if make == "yes":
-    subprocess.run(f"python3 buildscript.py", shell=True)
-elif make == "clean":
-    subprocess.run(f"python3 buildscript.py -clean True", shell=True)
-
 previously_threaded = available_tests[tests[0]][0]
+if make == "yes":
+    subprocess.run(f"python3 buildscript.py -vt {previously_threaded}", shell=True)
+elif make == "clean":
+    subprocess.run(f"python3 buildscript.py -clean True -vt {previously_threaded}", shell=True)
 
 current_path = os.path.dirname(__file__)
 rel_exec_path = "../build/BenchFilter"
 exec_path = os.path.join(current_path, rel_exec_path)
+parallel_rel_exec_path = "../build/BenchFilter"
+parallel_exec_path = os.path.join(current_path, parallel_rel_exec_path)
 
-log_sizes_to_test = [22, 26] #make configurable later?
+log_sizes_to_test = [18] #make configurable later?
 thread_counts_to_test = []
 i = 1
 while i <= thread_count:
@@ -65,8 +66,8 @@ if thread_count * 2 != i:
 
 for t in tests:
     threaded, rel_config_path = available_tests[t]
-    if threaded != previously_threaded:
-        subprocess.run(f"python3 buildscript.py -clean True -vt {threaded}", shell=True)
+    # if threaded != previously_threaded:
+    #     subprocess.run(f"python3 buildscript.py -clean True -vt {threaded}", shell=True)
 
     import errno
     # Taken from https://stackoverflow.com/a/600612/119527
@@ -83,12 +84,12 @@ for t in tests:
     mkdir_p(test_output_folder)
 
     config_path = os.path.join(current_path, rel_config_path)
+    lfbench_path = os.path.join(current_path, "lfbench.py")
     for lsize in log_sizes_to_test:
         if threaded:
             for tc in thread_counts_to_test:
-                subprocess.run(f"{exec_path} -logn {lsize} -nt {num_trials} -of {test_output_folder}-{thread_count}T -tc {thread_count} -fc {config_path}", shell=True)
+                subprocess.run(f"{parallel_exec_path} -logn {lsize} -nt {num_trials} -of {test_output_folder}-{tc}T -tc {tc} -fc {config_path}", shell=True)
+                subprocess.run(f"python3 {lfbench_path} -i {test_output_folder}-{tc}T -o {analysis_output_folder}-{tc}T", shell=True)
         else:
             subprocess.run(f"{exec_path} -logn {lsize} -nt {num_trials} -of {test_output_folder} -fc {config_path}", shell=True)
-    
-    lfbench_path = os.path.join(current_path, "lfbench.py")
-    subprocess.run(f"python3 {lfbench_path} -i {test_output_folder} -o {analysis_output_folder}", shell=True)
+            subprocess.run(f"python3 {lfbench_path} -i {test_output_folder} -o {analysis_output_folder}", shell=True)
