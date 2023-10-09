@@ -59,7 +59,7 @@ exec_path = os.path.join(current_path, rel_exec_path)
 parallel_rel_exec_path = "../build/BenchFilter"
 parallel_exec_path = os.path.join(current_path, parallel_rel_exec_path)
 
-log_sizes_to_test = [18] #make configurable later?
+log_sizes_to_test = [22, 26] #make configurable later?
 thread_counts_to_test = []
 i = 1
 while i <= thread_count:
