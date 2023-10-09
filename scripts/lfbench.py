@@ -2,7 +2,6 @@ import shutil
 import os, os.path
 import errno
 import math
-import matplotlib.pyplot as plt
 
 # Taken from https://stackoverflow.com/a/600612/119527
 def mkdir_p(path):
@@ -20,19 +19,7 @@ def safe_open_w(path):
     return open(path, 'w')
 
 
-# def plotStatistic(picname, filname, sfunc, all_failures, Ns):
-def plotStastic(picname, filname, Ns, stat):
-    # stat = []
-    # for N, failures in all_failures:
-    #     stat.append(failures[int(sfunc(len(failures)))] / N)
-    # Nslog, stat = (list(t) for t in zip(*sorted(zip(Ns, stat))))
-
-    # fig, ax = plt.subplots()
-    # ax.plot(Ns, stat)
-    # safe_open_w(picname + ".png") #laziness lol
-    # plt.savefig(picname + ".png")
-    # plt.close(fig)
-
+def plotStastic(filname, Ns, stat):
     with safe_open_w(filname + ".txt") as f:
         f.write("x_0 y_0\n")
         for (x, y) in zip(Ns, stat):
@@ -132,14 +119,14 @@ def analyzeFolder(idir, odir):
 
             upperf = os.path.join(odir,file)
 
-            plotStastic(os.path.join(upperf,"insertpics/",ftype), os.path.join(upperf, "inserts/", ftype), Ns, inserts)
-            plotStastic(os.path.join(upperf, "squerypics/", ftype), os.path.join(upperf, "squeries/", ftype), Ns, squeries)
-            plotStastic(os.path.join(upperf, "rquerypics/", ftype), os.path.join(upperf, "rqueries/", ftype), Ns, rqueries)
-            plotStastic(os.path.join(upperf, "removalpics/", ftype), os.path.join(upperf, "removals/", ftype), Ns, removals)
-            plotStastic(os.path.join(upperf, "mixedpics/", ftype), os.path.join(upperf, "mixed/", ftype), Ns, mixed)
-            plotStastic(os.path.join(upperf, "fprpics/", ftype), os.path.join(upperf, "fpr/", ftype), Ns, fpr)
-            plotStastic(os.path.join(upperf, "sizepics/", ftype), os.path.join(upperf, "sizes/", ftype), Ns, sizePerKey)
-            plotStastic(os.path.join(upperf, "efficiencypics/", ftype), os.path.join(upperf, "efficiency/", ftype), lfs, efficiency)
+            plotStastic(os.path.join(upperf, "inserts/", ftype), Ns, inserts)
+            plotStastic(os.path.join(upperf, "squeries/", ftype), Ns, squeries)
+            plotStastic(os.path.join(upperf, "rqueries/", ftype), Ns, rqueries)
+            plotStastic(os.path.join(upperf, "removals/", ftype), Ns, removals)
+            plotStastic(os.path.join(upperf, "mixed/", ftype), Ns, mixed)
+            plotStastic(os.path.join(upperf, "fpr/", ftype), Ns, fpr)
+            plotStastic(os.path.join(upperf, "sizes/", ftype), Ns, sizePerKey)
+            plotStastic(os.path.join(upperf, "efficiency/", ftype), lfs, efficiency)
 
 # depth = 0
 import argparse
