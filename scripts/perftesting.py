@@ -91,4 +91,4 @@ for t in tests:
             subprocess.run(f"{exec_path} -logn {lsize} -nt {num_trials} -of {test_output_folder} -fc {config_path}", shell=True)
     
     lfbench_path = os.path.join(current_path, "lfbench.py")
-    subprocess.run(f"python {lfbench_path} -i {test_output_folder} -o {analysis_output_folder}", shell=True)
+    subprocess.run(f"python3 {lfbench_path} -i {test_output_folder} -o {analysis_output_folder}", shell=True)
