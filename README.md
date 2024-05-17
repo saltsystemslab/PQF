@@ -1,7 +1,7 @@
 # Dynamic-Prefix-Filter
 
 ## How to Run
-When cloning, also clone the submodules: git clone --recurse-submodules git@github.com:andrewkrapivin/Dynamic-Prefix-Filter.git
+Make sure to clone the submodules: git submodule update --init
 
 ### Build VQF:
 - cd test/vqf
