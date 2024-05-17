@@ -47,26 +47,26 @@ size_t generateKey(const FT& filter, std::mt19937_64& generator) {
 
 template<typename FT>
 std::vector<size_t> generateKeys(const FT& filter, size_t N, size_t NumThreads = 32) {
-    // std::vector<size_t> keys(N);
-    // std::vector<size_t> threadKeys = splitRange(0, N, NumThreads);
+    std::vector<size_t> keys(N);
+    std::vector<size_t> threadKeys = splitRange(0, N, NumThreads);
 
-    // std::vector<std::thread> threads;
-    // for(size_t i = 0; i < NumThreads; i++) {
-    //     threads.push_back(std::thread([&, i] {
-    //         auto generator = createGenerator();
-    //         for(size_t j=threadKeys[i]; j < threadKeys[i+1]; j++) {
-    //             keys[j] = generateKey<FT>(filter, generator);
-    //         }
-    //     }));
-    // }
-    // for(auto& th: threads) {
-    //     th.join();
-    // }
-    std::vector<size_t> keys;
-    auto generator = createGenerator();
-    for(size_t i=0; i < N; i++) {
-        keys.push_back(generateKey<FT>(filter, generator));
+    std::vector<std::thread> threads;
+    for(size_t i = 0; i < NumThreads; i++) {
+        threads.push_back(std::thread([&, i] {
+            auto generator = createGenerator();
+            for(size_t j=threadKeys[i]; j < threadKeys[i+1]; j++) {
+                keys[j] = generateKey<FT>(filter, generator);
+            }
+        }));
     }
+    for(auto& th: threads) {
+        th.join();
+    }
+    // std::vector<size_t> keys;
+    // auto generator = createGenerator();
+    // for(size_t i=0; i < N; i++) {
+    //     keys.push_back(generateKey<FT>(filter, generator));
+    // }
     return keys;
 }
 
