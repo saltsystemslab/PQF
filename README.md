@@ -22,21 +22,21 @@ When cloning, also clone the submodules: git clone --recurse-submodules -j8 git:
 ### All together:
 
 #### Singlethreaded:
-cd test/vqf
-make clean
-make
-cd ../..
-cd build
-cmake ..
-make
+cd test/vqf &&
+make clean &&
+make && 
+cd ../.. && 
+cd build && 
+cmake .. && 
+make && 
 ./Tester ST_Config.txt outST.txt analysis
 
 #### Multithreaded:
-cd test/vqf
-make clean
-make THREAD=1
-cd ../..
-cd build
-cmake ..
-make
+cd test/vqf &&
+make clean && 
+make THREAD=1 && 
+cd ../.. && 
+cd build && 
+cmake .. && 
+make && 
 ./Tester MT_Config.txt outMT.txt analysis
