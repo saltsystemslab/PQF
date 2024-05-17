@@ -1,0 +1,94 @@
+Benchmark
+NumKeys 1048576 4194304 
+67108864 
+# 268435456
+NumThreads 1
+NumTrials 3
+NumReplicants 1
+LoadFactorTicks 20
+
+MaxLoadFactor 0.83
+PQF_8_22 PQF_8_22_FRQ
+
+MaxLoadFactor 0.895
+PQF_8_22BB PQF_8_22BB_FRQ
+
+# MaxLoadFactor 0.82
+# PQF_8_31 PQF_8_31_FRQ
+
+MaxLoadFactor 0.915
+PQF_8_53 PQF_8_53_FRQ
+
+# MaxLoadFactor 0.91
+# PQF_8_62 PQF_8_62_FRQ
+
+MaxLoadFactor 0.88
+PQF_16_36 PQF_16_36_FRQ
+
+MaxLoadFactor 0.93
+VQF
+
+MaxLoadFactor 1.0
+# PF_TC PF_CFF12 
+PF_BBFF 
+# CFF12 BBFF
+
+MaxLoadFactor 0.945
+OriginalCF12 
+# OriginalCF16
+
+MaxLoadFactor 0.98
+Morton3_12 
+# Morton3_18
+
+#Have to reset it to 0.9 as I had that set before, which is definitely an issue as this thing does not make use of this setting. Gonna have to figure out how to get around this
+MaxLoadFactor 0.9
+LoadFactor
+NumTrials 100
+NumReplicants 16
+NumKeys 32768 65536 131072 262144 524288 1048576 2097152 4194304 8388608 16777216
+# PQF_8_22 PQF_8_22BB PQF_8_53 PQF_16_36 VQF OriginalCF12 Morton3_12
+# NumKeys 32768 65536 131072 262144 524288 1048576 2097152 4194304 8388608 16777216 33554432 67108864 134217728 268435456 536870912 1073741824
+
+NumTrials 10
+NumKeys 33554432 67108864
+# PQF_8_22 PQF_8_22BB PQF_8_53 PQF_16_36 VQF OriginalCF12 Morton3_12
+
+NumTrials 5
+NumKeys 134217728
+# PQF_8_22 PQF_8_22BB PQF_8_53 PQF_16_36 VQF OriginalCF12 Morton3_12
+
+NumTrials 2
+NumKeys 268435456
+# PQF_8_22 PQF_8_22BB PQF_8_53 PQF_16_36 VQF OriginalCF12 Morton3_12
+
+NumTrials 1
+NumKeys 536870912
+# PQF_8_22 PQF_8_22BB PQF_8_53 PQF_16_36 VQF OriginalCF12 Morton3_12
+
+NumReplicants 10
+NumKeys 1073741824
+# PQF_8_22 PQF_8_22BB PQF_8_53 PQF_16_36 VQF OriginalCF12 Morton3_12
+
+InsertDelete
+NumTrials 1
+NumReplicants 10
+NumKeys 16777216
+MaxInsertDeleteRatio 20
+MinLoadFactor 0.6
+LoadFactorTicks 10
+
+MaxLoadFactor 0.83
+# PQF_8_22_FRQ
+
+MaxLoadFactor 0.895
+# PQF_8_22BB_FRQ
+
+MaxLoadFactor 0.915
+# PQF_8_53_FRQ
+
+MaxLoadFactor 0.93
+# VQF
+
+MaxLoadFactor 0.9
+# OriginalCF12 
