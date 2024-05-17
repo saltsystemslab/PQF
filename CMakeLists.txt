@@ -13,10 +13,13 @@ set(CMAKE_CXX_FLAGS "-march=native -pthread")
 include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)
 
-
 set(DPF_FILES 
     src/DynamicPrefixFilter.cpp src/TestUtility.cpp include/Bucket.hpp include/DynamicPrefixFilter.hpp
     include/MiniFilter.hpp include/QRContainers.hpp include/RemainderStore.hpp)
+
+# set(VQF_Files test/vqf/include/vqf_filter.h test/vqf/include/vqf_precompute.h test/vqf/include/vqf_wrapper.h
+#     src/shuffle_matrix_256.c src/shuffle_matrix_512.c
+# )
 
 set(PF_FILES
     test/Prefix-Filter/Prefix-Filter/Shift_op.hpp test/Prefix-Filter/Prefix-Filter/Shift_op.cpp

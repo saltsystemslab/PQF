@@ -47,27 +47,31 @@ size_t generateKey(const FT& filter, std::mt19937_64& generator) {
 
 template<typename FT>
 std::vector<size_t> generateKeys(const FT& filter, size_t N, size_t NumThreads = 32) {
-    std::vector<size_t> keys(N);
-    std::vector<size_t> threadKeys = splitRange(0, N, NumThreads);
-
-    std::vector<std::thread> threads;
-    for(size_t i = 0; i < NumThreads; i++) {
-        threads.push_back(std::thread([&, i] {
-            auto generator = createGenerator();
-            for(size_t j=threadKeys[i]; j < threadKeys[i+1]; j++) {
-                keys[j] = generateKey<FT>(filter, generator);
-            }
-        }));
+    if(NumThreads > 1) {
+        std::vector<size_t> keys(N);
+        std::vector<size_t> threadKeys = splitRange(0, N, NumThreads);
+        std::vector<std::thread> threads;
+        for(size_t i = 0; i < NumThreads; i++) {
+            threads.push_back(std::thread([&, i] {
+                auto generator = createGenerator();
+                for(size_t j=threadKeys[i]; j < threadKeys[i+1]; j++) {
+                    keys[j] = generateKey<FT>(filter, generator);
+                }
+            }));
+        }
+        for(auto& th: threads) {
+            th.join();
+        }
+        return keys;
     }
-    for(auto& th: threads) {
-        th.join();
+    else {
+        std::vector<size_t> keys;
+        auto generator = createGenerator();
+        for(size_t i=0; i < N; i++) {
+            keys.push_back(generateKey<FT>(filter, generator));
+        }
+        return keys;
     }
-    // std::vector<size_t> keys;
-    // auto generator = createGenerator();
-    // for(size_t i=0; i < N; i++) {
-    //     keys.push_back(generateKey<FT>(filter, generator));
-    // }
-    return keys;
 }
 
 template<typename FT>
@@ -109,20 +113,55 @@ bool removeItems(FT& filter, const std::vector<size_t>& keys, size_t start, size
     return true;
 }
 
+template<typename FT>
+bool checkFunctional(FT& filter, const std::vector<size_t>& keysInFilter, std::mt19937_64& generator, size_t maxKeyCount) {
+    //Make configurable later
+    size_t checkQuerySize = 1000;
+    double minimumFPR = 0.05; //minimum false positive rate must maintain. should set relatively generously to avoid accidental failures as this is randomized ofc.
+
+    std::uniform_int_distribution indexDist(0ull, keysInFilter.size()-1ull);
+    std::vector<size_t> checkKeys(checkQuerySize);
+    for(auto& index: checkKeys) {
+        index = keysInFilter[indexDist(generator)];
+    }
+
+    bool success = checkQuery(filter, checkKeys, 0, checkKeys.size());
+
+    std::vector<size_t> randomKeys = generateKeys(filter, checkQuerySize, 1);
+    size_t numFalsePositives = getNumFalsePositives(filter, randomKeys, 0, randomKeys.size());
+    double fpr = ((double) numFalsePositives) / randomKeys.size();
+    if(fpr < minimumFPR) {
+        success = false;
+    }
+
+    return true;
+}
+
 //Assumes filter already filled enough so then it will only insert & delete one key at a time
 template<typename FT>
 size_t streamingInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, std::mt19937_64& generator, size_t maxKeyCount) {
+    size_t checkQueryInterval = 1000; //To confirm the deletions are working properly. Make configurable later?
+    
     for(size_t i=0; i < maxKeyCount;  i++) {
         if (i% 10000000 == 0) {
             std::cout << i << "\n";
         }
+
+        if(i % checkQueryInterval == 0) {
+            if(!checkFunctional(filter, keysInFilter, generator, maxKeyCount)) {
+                return i;
+            }
+        }
+
         size_t keyToRemove = i % keysInFilter.size();
         if(!filter.remove(keysInFilter[keyToRemove])) {
+            std::cout << "Failed to remove at " << i << std::endl;
             return i;
         }
         keysInFilter[keyToRemove] = -1ull; //outside filter.range so we can check this
         size_t key = generateKey(filter, generator);
         if(!filter.insert(key)) {
+            std::cout << "Failed to insert at " << i << std::endl;
             return i;
         }
         keysInFilter[keyToRemove] = key;
@@ -132,11 +171,20 @@ size_t streamingInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, 
 
 template<typename FT>
 size_t randomInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, std::mt19937_64& generator, size_t maxKeyCount) {
+    size_t checkQueryInterval = 1000;
+
     std::uniform_int_distribution removeDist(0ull, keysInFilter.size()-1ull);
     for(size_t i=0; i < maxKeyCount;  i++) {
         if (i% 10000000 == 0) {
             std::cout << i << "\n";
         }
+
+        if(i % checkQueryInterval == 0) {
+            if(!checkFunctional(filter, keysInFilter, generator, maxKeyCount)) {
+                return i;
+            }
+        }
+
         size_t keyToRemove = removeDist(generator);
         if(!filter.remove(keysInFilter[keyToRemove])) {
             return i;
