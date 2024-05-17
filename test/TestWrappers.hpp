@@ -28,8 +28,11 @@ class VQFWrapper {
             range = filter->metadata.range;
         }
 
-        void insert(std::uint64_t hash) {
-            insertFailure = !vqf_insert(filter, hash);
+        bool insert(std::uint64_t hash) {
+
+            bool success = vqf_insert(filter, hash);
+            insertFailure = !success;
+            return success;
             // if constexpr (DynamicPrefixFilter::DEBUG || DynamicPrefixFilter::PARTIAL_DEBUG) {
             //     if (!vqf_insert(filter, hash)) {
             //         fprintf(stderr, "Insertion failed");
@@ -117,9 +120,12 @@ class PFFilterAPIWrapper {
             range = -1ull;
         }
 
-        void insert(std::uint64_t hash) {
+        bool insert(std::uint64_t hash) {
             FilterAPI<FilterType>::Add(hash, &filter);
-            // insertFailure = !FilterAPI<FilterType>::Add_attempt(hash, &filter);
+            // bool success = FilterAPI<FilterType>::Add_attempt(hash, &filter); //DOES NOT EXIST IN Prefix_Filter!!!!!
+            // insertFailure = !success;
+            // return success;
+            return true;////terrible!
         }
 
         bool query(std::uint64_t hash) {
@@ -157,10 +163,12 @@ class CuckooWrapper{
             range = -1ull;
         }
 
-        void insert(std::uint64_t hash) {
+        bool insert(std::uint64_t hash) {
             ST status = filter.Add(hash);
-            insertFailure = status == cuckoofilter::NotEnoughSpace;
+            bool failure = status == cuckoofilter::NotEnoughSpace;
             // insertFailure = !FilterAPI<FilterType>::Add_attempt(hash, &filter);
+            insertFailure = failure;
+            return !failure;
         }
 
         bool query(std::uint64_t hash) {
@@ -192,8 +200,10 @@ class MortonWrapper{
             range = -1ull;
         }
 
-        void insert(std::uint64_t hash) {
-            insertFailure = filter.insert(hash);
+        bool insert(std::uint64_t hash) {
+            bool failure = filter.insert(hash);
+            insertFailure = failure;
+            return failure;
         }
 
         bool query(std::uint64_t hash) {

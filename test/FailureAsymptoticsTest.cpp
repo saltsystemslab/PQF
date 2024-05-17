@@ -51,8 +51,10 @@ TestResult testInsertsUntilFull(size_t N_Filter) {
 
     for(size_t i{0}; i < N; i++) {
         size_t key = keyDist(generator) % filter.range;
-        filter.insert(key);
-        if(filter.insertFailure) {
+        bool success = filter.insert(key);
+        
+        // if(filter.insertFailure) {
+        if(!success) {
             res.N_Failure = i+1;
             // res.failureBucket1 = filter.failureBucket1;
             // res.failureBucket2 = filter.failureBucket2;
@@ -107,7 +109,7 @@ class FilterTester {
                 filesystem::create_directory("results");
             }
             
-            string folder = "results/FailureTestAll/Test6NormalizedOldHash/";
+            string folder = "results/FailureTestAll/TestGOONormalizedOldHash/";
 
             if(!filesystem::exists(folder)) { //Todo: look up how to do this recursively easily (or do it yourself)
                 filesystem::create_directory(folder);

@@ -1,0 +1,224 @@
+#ifndef TESTER_HPP
+#define TESTER_HPP
+
+#include <functional>
+#include <string_view>
+#include <string>
+#include <utility>
+#include <random>
+#include "DynamicPrefixFilter.hpp"
+#include "TestWrappers.hpp"
+
+double runTest(function<void(void)> t);
+
+std::vector<size_t> splitRange(size_t start, size_t end, size_t numSegs);
+std::mt19937_64 createGenerator();
+
+template<typename FT>
+size_t generateKey(const FT& filter, std::mt19937_64& generator);
+
+template<typename FT>
+bool insertItems(FT& filter, const std::vector<size_t>& keys, size_t start, size_t end);
+
+template<typename FT>
+bool checkQuery(FT& filter, const std::vector<size_t>& keys, size_t start, size_t end);
+
+template<typename FT>
+size_t getNumFalsePositives(FT& filter, const std::vector<size_t>& FPRkeys, size_t start, size_t end);
+
+template<typename FT>
+bool removeItems(FT& filter, const std::vector<size_t>& keys, size_t start, size_t end);
+
+template<typename FT>
+size_t streamingInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, std::mt19937_64& generator, size_t maxKeyCount);
+
+template<typename FT>
+size_t randomInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, std::mt19937_64& generator, size_t maxKeyCount);
+
+template<typename ...FTWrappers>
+void runTests(std::string configFile, std::string );
+
+
+
+
+//PQF Types
+template<typename FT, const char* n>
+struct PQF_Wrapper_SingleT {
+    using type = FT;
+    static constexpr std::string_view name{n};
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = true;
+    static constexpr bool canDelete = true;
+};
+
+
+static const char PQF_8_22_Wrapper_str[] = "PQF_8_22";
+using PQF_8_22_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_22, PQF_8_22_Wrapper_str>;
+static const char PQF_8_22_FRQ_Wrapper_str[] = "PQF_8_22_FRQ";
+using PQF_8_22_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_22_FRQ, PQF_8_22_FRQ_Wrapper_str>;
+static const char PQF_8_22BB_Wrapper_str[] = "PQF_8_22BB";
+using PQF_8_22BB_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_22BB, PQF_8_22BB_Wrapper_str>;
+static const char PQF_8_22BB_FRQ_Wrapper_str[] = "PQF_8_22BB_FRQ";
+using PQF_8_22BB_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_22BB_FRQ, PQF_8_22BB_FRQ_Wrapper_str>;
+
+static const char PQF_8_31_Wrapper_str[] = "PQF_8_31";
+using PQF_8_31_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_31, PQF_8_31_Wrapper_str>;
+static const char PQF_8_31_FRQ_Wrapper_str[] = "PQF_8_31_FRQ";
+using PQF_8_31_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_31_FRQ, PQF_8_31_FRQ_Wrapper_str>;
+
+static const char PQF_8_62_Wrapper_str[] = "PQF_8_62";
+using PQF_8_62_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_62, PQF_8_62_Wrapper_str>;
+static const char PQF_8_62_FRQ_Wrapper_str[] = "PQF_8_62_FRQ";
+using PQF_8_62_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_62_FRQ, PQF_8_62_FRQ_Wrapper_str>;
+
+static const char PQF_8_53_Wrapper_str[] = "PQF_8_53";
+using PQF_8_53_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_53, PQF_8_53_Wrapper_str>;
+static const char PQF_8_53_FRQ_Wrapper_str[] = "PQF_8_53_FRQ";
+using PQF_8_53_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_53_FRQ, PQF_8_53_FRQ_Wrapper_str>;
+
+static const char PQF_16_36_Wrapper_str[] = "PQF_16_36";
+using PQF_16_36_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_16_36, PQF_16_36_Wrapper_str>;
+static const char PQF_16_36_FRQ_Wrapper_str[] = "PQF_16_36_FRQ";
+using PQF_16_36_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_16_36_FRQ, PQF_16_36_FRQ_Wrapper_str>;
+
+
+template<typename FT, const char* n>
+struct PQF_Wrapper_MultiT {
+    using type = FT;
+    static constexpr std::string_view name{n};
+    static constexpr bool threaded = true;
+    static constexpr bool onlyInsertsThreaded = false;
+    static constexpr bool canBatch = true;
+    static constexpr bool canDelete = true;
+};
+
+static const char PQF_8_21_T_Wrapper_str[] = "PQF_8_21_T";
+using PQF_8_21_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_8_21_T, PQF_8_21_T_Wrapper_str>;
+static const char PQF_8_21_FRQ_T_Wrapper_str[] = "PQF_8_21_FRQ_T";
+using PQF_8_21_FRQ_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_8_21_FRQ_T, PQF_8_21_FRQ_T_Wrapper_str>;
+
+static const char PQF_8_52_T_Wrapper_str[] = "PQF_8_52_T";
+using PQF_8_52_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_8_52_T, PQF_8_52_T_Wrapper_str>;
+static const char PQF_8_52_FRQ_T_Wrapper_str[] = "PQF_8_52_FRQ_T";
+using PQF_8_52_FRQ_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_8_52_FRQ_T, PQF_8_52_FRQ_T_Wrapper_str>;
+
+static const char PQF_16_35_T_Wrapper_str[] = "PQF_16_35_T";
+using PQF_16_35_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_16_35_T, PQF_16_35_T_Wrapper_str>;
+static const char PQF_16_35_FRQ_T_Wrapper_str[] = "PQF_16_35_FRQ_T";
+using PQF_16_35_FRQ_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_16_35_FRQ_T, PQF_16_35_FRQ_T_Wrapper_str>;
+
+
+//PF Types
+struct PF_TC_Wrapper {
+    using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
+    static constexpr std::string_view name = "PF_TC";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = false;
+};
+
+using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+
+struct CF12_Flex_Wrapper {
+    using type = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+    static constexpr std::string_view name = "CF12_Flex";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+};
+
+struct PF_CFF12_Wrapper {
+    using type = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex_Wrapper::type, sizeCFF>>;
+    static constexpr std::string_view name = "PF_CFF12";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = false;
+};
+
+struct PF_BBFF_Wrapper {
+    using type = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+    static constexpr std::string_view name = "PF_BBFF";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = false;
+};
+
+struct TC_Wrapper {
+    using type = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
+    static constexpr std::string_view name = "TC";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+};
+
+struct CFF12_Wrapper {
+    using type = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
+    static constexpr std::string_view name = "CFF12";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+};
+
+struct BBFF_Wrapper {
+    using type = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
+    static constexpr std::string_view name = "BBFF";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = false;
+};
+
+
+//Original cuckoo filter
+struct OriginalCF12_Wrapper {
+    using type = CuckooWrapper<size_t, 12>;
+    static constexpr std::string_view name = "OriginalCF12";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+};
+
+struct OriginalCF16_Wrapper {
+    using type = CuckooWrapper<size_t, 16>;
+    static constexpr std::string_view name = "OriginalCF16";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+};
+
+
+//Morton
+struct Morton3_12_Wrapper {
+    using type = MortonWrapper<CompressedCuckoo::Morton3_12>;
+    static constexpr std::string_view name = "Morton3_12";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = true;
+    static constexpr bool canDelete = true;
+};
+struct Morton3_18_Wrapper {
+    using type = MortonWrapper<CompressedCuckoo::Morton3_18>;
+    static constexpr std::string_view name = "Morton3_18";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = true;
+    static constexpr bool canDelete = true;
+};
+
+//VQF
+struct VQF_Wrapper {
+    using type = VQFWrapper; //kinda bad
+    static constexpr std::string_view name = "VQF";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+};
+
+//not a real different one from VQF, but just for the output distinction. VQF needs macro change, so we just recompile the VQF for a threaded test
+struct VQFT_Wrapper {
+    using type = VQFWrapper; //kinda bad
+    static constexpr std::string_view name = "VQFT";
+    static constexpr bool threaded = true;
+    static constexpr bool onlyInsertsThreaded = true;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+};
+
+#endif

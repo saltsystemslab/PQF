@@ -9,6 +9,7 @@ using namespace DynamicPrefixFilter;
 // template class PartitionQuotientFilter<46, 51, 16, 8, 64, 32>; //These fail for obvious reasons, but I wanted to try anyways
 // template class PartitionQuotientFilter<46, 51, 16, 7, 64, 32>;
 template class PartitionQuotientFilter<8, 46, 51, 35, 8, 64, 64>;
+template class PartitionQuotientFilter<8, 45, 51, 35, 8, 64, 64>;
 template class PartitionQuotientFilter<8, 46, 51, 35, 6, 64, 64>;
 template class PartitionQuotientFilter<8, 46, 51, 35, 4, 64, 64>;
 template class PartitionQuotientFilter<8, 48, 51, 35, 8, 64, 64>;
@@ -89,6 +90,7 @@ template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size
 void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::lockFrontyard(std::size_t i) {
     
     //FIX THE ISSUE OF HAVING TWO LOCKS PER CACHELINE!!!! Not as trivial as sounds, unless can simple make the vector allocate aligned to 64 bytes.
+    //FIXED (by having the vector allocate aligned to 64 bytes, which is why the frontyardLockCachelineMask is there)
     if constexpr (Threaded) {
         // std::cout << "tl" << i << std::endl;
         // std::cout << "tf" << std::endl;
@@ -172,11 +174,13 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
             assert(backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull); //Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
         else {
             if constexpr (DIAGNOSTICS) {
-                insertFailure = backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex != -1ull;
+                bool success = backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull;
                 failureFB = overflow.bucketIndex;
                 failureBucket1 = firstBackyardQR.bucketIndex;
                 failureBucket2 = secondBackyardQR.bucketIndex;
                 failureWFB = firstBackyardQR.whichFrontyardBucket;
+                insertFailure = !success;
+                return success;
             }
             else {
                 backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR);
@@ -189,11 +193,13 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
             assert(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull);
         else {
             if constexpr (DIAGNOSTICS) {
-                insertFailure = backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex != -1ull;
+                bool success = backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
+                insertFailure = !success;
                 failureFB = overflow.bucketIndex;
                 failureBucket1 = firstBackyardQR.bucketIndex;
                 failureBucket2 = secondBackyardQR.bucketIndex;
                 failureWFB = firstBackyardQR.whichFrontyardBucket;
+                return success;
             }
             else {
                 return backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;

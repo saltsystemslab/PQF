@@ -167,6 +167,33 @@ namespace DynamicPrefixFilter {
     };
 
 
+    using PQF_8_22 = DynamicPrefixFilter::PartitionQuotientFilter<8, 22, 26, 18, 8, 32, 32, false, false>;
+    using PQF_8_22_FRQ = DynamicPrefixFilter::PartitionQuotientFilter<8, 22, 26, 18, 8, 32, 32, true, false>;
+    using PQF_8_22BB = DynamicPrefixFilter::PartitionQuotientFilter<8, 22, 26, 37, 8, 32, 64, false, false>;
+    using PQF_8_22BB_FRQ = DynamicPrefixFilter::PartitionQuotientFilter<8, 22, 26, 37, 8, 32, 64, true, false>;
+
+    using PQF_8_31 = DynamicPrefixFilter::PartitionQuotientFilter<8, 31, 25, 17, 8, 32, 32, false, false>;
+    using PQF_8_31_FRQ = DynamicPrefixFilter::PartitionQuotientFilter<8, 31, 25, 17, 8, 32, 32, true, false>;
+
+    using PQF_8_62 = DynamicPrefixFilter::PartitionQuotientFilter<8, 62, 50, 34, 8, 64, 64, false, false>;
+    using PQF_8_62_FRQ = DynamicPrefixFilter::PartitionQuotientFilter<8, 62, 50, 34, 8, 64, 64, true, false>;
+
+    using PQF_8_53 = DynamicPrefixFilter::PartitionQuotientFilter<8, 53, 51, 35, 8, 64, 64, false, false>;
+    using PQF_8_53_FRQ = DynamicPrefixFilter::PartitionQuotientFilter<8, 53, 51, 35, 8, 64, 64, true, false>;
+
+    using PQF_16_36 = DynamicPrefixFilter::PartitionQuotientFilter<16, 36, 28, 22, 8, 64, 64, false, false>;
+    using PQF_16_36_FRQ = DynamicPrefixFilter::PartitionQuotientFilter<16, 36, 28, 22, 8, 64, 64, true, false>;
+
+
+    using PQF_8_21_T = DynamicPrefixFilter::PartitionQuotientFilter<8, 21, 26, 18, 8, 32, 32, false, true>;
+    using PQF_8_21_FRQ_T = DynamicPrefixFilter::PartitionQuotientFilter<8, 21, 26, 18, 8, 32, 32, true, true>;
+
+    using PQF_8_52_T = DynamicPrefixFilter::PartitionQuotientFilter<8, 52, 51, 35, 8, 64, 64, false, true>;
+    using PQF_8_52_FRQ_T = DynamicPrefixFilter::PartitionQuotientFilter<8, 52, 51, 35, 8, 64, 64, true, true>;
+
+    using PQF_16_35_T = DynamicPrefixFilter::PartitionQuotientFilter<16, 35, 28, 22, 8, 64, 64, false, true>;
+    using PQF_16_35_FRQ_T = DynamicPrefixFilter::PartitionQuotientFilter<16, 35, 28, 22, 8, 64, 64, false, true>;
+
     // template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery>
     // class PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, true>: public PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, false> {
     //     static_assert(!Threaded);
