@@ -47,25 +47,26 @@ size_t generateKey(const FT& filter, std::mt19937_64& generator) {
 
 template<typename FT>
 std::vector<size_t> generateKeys(const FT& filter, size_t N, size_t NumThreads = 32) {
-    std::vector<size_t> keys(N);
-    std::vector<size_t> threadKeys = splitRange(0, N, NumThreads);
+    // std::vector<size_t> keys(N);
+    // std::vector<size_t> threadKeys = splitRange(0, N, NumThreads);
 
-    std::vector<std::thread> threads;
-    for(size_t i = 0; i < NumThreads; i++) {
-        threads.push_back(std::thread([&, i] {
-            auto generator = createGenerator();
-            for(size_t j=threadKeys[i]; j < threadKeys[i+1]; j++) {
-                keys[j] = generateKey<FT>(filter, generator);
-            }
-        }));
-    }
-    for(auto& th: threads) {
-        th.join();
-    }
-    // auto generator = createGenerator();
-    // for(size_t i=0; i < N; i++) {
-    //     keys.push_back(generateKey<FT>(filter, generator));
+    // std::vector<std::thread> threads;
+    // for(size_t i = 0; i < NumThreads; i++) {
+    //     threads.push_back(std::thread([&, i] {
+    //         auto generator = createGenerator();
+    //         for(size_t j=threadKeys[i]; j < threadKeys[i+1]; j++) {
+    //             keys[j] = generateKey<FT>(filter, generator);
+    //         }
+    //     }));
     // }
+    // for(auto& th: threads) {
+    //     th.join();
+    // }
+    std::vector<size_t> keys;
+    auto generator = createGenerator();
+    for(size_t i=0; i < N; i++) {
+        keys.push_back(generateKey<FT>(filter, generator));
+    }
     return keys;
 }
 
@@ -112,6 +113,9 @@ bool removeItems(FT& filter, const std::vector<size_t>& keys, size_t start, size
 template<typename FT>
 size_t streamingInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, std::mt19937_64& generator, size_t maxKeyCount) {
     for(size_t i=0; i < maxKeyCount;  i++) {
+        if (i% 10000000 == 0) {
+            std::cout << i << "\n";
+        }
         size_t keyToRemove = i % keysInFilter.size();
         if(!filter.remove(keysInFilter[keyToRemove])) {
             return i;
@@ -130,6 +134,9 @@ template<typename FT>
 size_t randomInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, std::mt19937_64& generator, size_t maxKeyCount) {
     std::uniform_int_distribution removeDist(0ull, keysInFilter.size()-1ull);
     for(size_t i=0; i < maxKeyCount;  i++) {
+        if (i% 10000000 == 0) {
+            std::cout << i << "\n";
+        }
         size_t keyToRemove = removeDist(generator);
         if(!filter.remove(keysInFilter[keyToRemove])) {
             return i;
@@ -221,6 +228,8 @@ std::ostream & operator<<(std::ostream &os, const Settings& s) {
     os << "LoadFactorTicks " << s.loadFactorTicks << "\n";
     if(s.maxLoadFactor)
         os << "MaxLoadFactor " << (*(s.maxLoadFactor)) << "\n";
+    os << "MinLoadFactor " << s.minLoadFactor << "\n";
+    os << "MaxInsertDeleteRatio " << s.maxInsertDeleteRatio << "\n";
     os << s.FTName << "\n";
     return os;
 }
@@ -353,74 +362,75 @@ struct BenchmarkWrapper {
         results.push_back(true); //if check queries succeeded
         results.push_back(true); //if removals succeeded
         for(size_t i=0; i < numTicks; i++) {
-            std::cout << tickRanges[i] << "\n";
+            size_t numFalsePositives;
+            // std::cout << tickRanges[i] << "\n";
 
-            auto threadRanges = splitRange(tickRanges[i], tickRanges[i+1], numThreads);
-            std::vector<size_t> threadResults(numThreads);
+            // auto threadRanges = splitRange(tickRanges[i], tickRanges[i+1], numThreads);
+            // std::vector<size_t> threadResults(numThreads);
 
-            double insTime = runTest([&]() {
-                std::vector<std::thread> threads;
-                for(size_t i = 0; i < numThreads; i++) {
-                    threads.push_back(std::thread([&, i] {threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
-                }
-                for(auto& th: threads) {
-                    th.join();
-                }
-            });
-
-            for(auto result: threadResults) {
-                if(!result) {
-                    results[0] = false;
-                }
-            }
             // double insTime = runTest([&]() {
-            //     results[0] = insertItems<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
+            //     std::vector<std::thread> threads;
+            //     for(size_t i = 0; i < numThreads; i++) {
+            //         threads.push_back(std::thread([&, i] {threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
+            //     }
+            //     for(auto& th: threads) {
+            //         th.join();
+            //     }
             // });
+
+            // for(auto result: threadResults) {
+            //     if(!result) {
+            //         results[0] = false;
+            //     }
+            // }
+            double insTime = runTest([&]() {
+                results[0] = insertItems<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
+            });
             if(!results[0]) {
                 std::cerr << "FAILED AT " << i << std::endl;
                 break;
             }
 
-            double successfulQueryTime = runTest([&]() {
-                std::vector<std::thread> threads;
-                for(size_t i = 0; i < numThreads; i++) {
-                    threads.push_back(std::thread([&, i] {threadResults[i] = checkQuery<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
-                }
-                for(auto& th: threads) {
-                    th.join();
-                }
-            });
-            for(auto result: threadResults) {
-                if(!result) {
-                    results[1] = false;
-                }
-            }
             // double successfulQueryTime = runTest([&]() {
-            //     results[1] = checkQuery<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
+            //     std::vector<std::thread> threads;
+            //     for(size_t i = 0; i < numThreads; i++) {
+            //         threads.push_back(std::thread([&, i] {threadResults[i] = checkQuery<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
+            //     }
+            //     for(auto& th: threads) {
+            //         th.join();
+            //     }
             // });
+            // for(auto result: threadResults) {
+            //     if(!result) {
+            //         results[1] = false;
+            //     }
+            // }
+            double successfulQueryTime = runTest([&]() {
+                results[1] = checkQuery<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
+            });
             if(!results[1]) {
                 std::cerr << "BAD QUERY " << i << std::endl;
                 break;
             }
 
-            double randomQueryTime = runTest([&]() {
-                std::vector<std::thread> threads;
-                for(size_t i = 0; i < numThreads; i++) {
-                    threads.push_back(std::thread([&, i] {threadResults[i] = getNumFalsePositives<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
-                }
-                for(auto& th: threads) {
-                    th.join();
-                }
-            });
-            
-            size_t numFalsePositives = 0;
-            for(auto res: threadResults) {
-                numFalsePositives += res;
-            }
-
             // double randomQueryTime = runTest([&]() {
-            //     numFalsePositives = getNumFalsePositives<FT>(filter, fprKeys, tickRanges[i], tickRanges[i+1]);
+            //     std::vector<std::thread> threads;
+            //     for(size_t i = 0; i < numThreads; i++) {
+            //         threads.push_back(std::thread([&, i] {threadResults[i] = getNumFalsePositives<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
+            //     }
+            //     for(auto& th: threads) {
+            //         th.join();
+            //     }
             // });
+            
+            // size_t numFalsePositives = 0;
+            // for(auto res: threadResults) {
+            //     numFalsePositives += res;
+            // }
+
+            double randomQueryTime = runTest([&]() {
+                numFalsePositives = getNumFalsePositives<FT>(filter, fprKeys, tickRanges[i], tickRanges[i+1]);
+            });
 
             double falsePositiveRate = ((double) numFalsePositives) / (tickRanges[i+1] - tickRanges[i]);
             // std::cout << "goo " << numFalsePositives << " " << falsePositiveRate << std::endl;
@@ -432,28 +442,28 @@ struct BenchmarkWrapper {
             if (results[0] && results[1]) {
                 std::vector<double> removalTimes;
                 for(size_t i=0; i < numTicks; i++) {
-                    auto threadRanges = splitRange(tickRanges[i], tickRanges[i+1], numThreads);
-                    std::vector<size_t> threadResults(numThreads);
+                    // auto threadRanges = splitRange(tickRanges[i], tickRanges[i+1], numThreads);
+                    // std::vector<size_t> threadResults(numThreads);
 
-                    double removalTime = runTest([&]() {
-                        std::vector<std::thread> threads;
-                        for(size_t i = 0; i < numThreads; i++) {
-                            threads.push_back(std::thread([&, i] {threadResults[i] = removeItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
-                        }
-                        for(auto& th: threads) {
-                            th.join();
-                        }
-                    });
-
-                    for(auto result: threadResults) {
-                        if(!result) {
-                            results[2] = false;
-                        }
-                    }
-
-                    // double removalTime = runTest([&] () {
-                    //     results[2] = removeItems<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
+                    // double removalTime = runTest([&]() {
+                    //     std::vector<std::thread> threads;
+                    //     for(size_t i = 0; i < numThreads; i++) {
+                    //         threads.push_back(std::thread([&, i] {threadResults[i] = removeItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
+                    //     }
+                    //     for(auto& th: threads) {
+                    //         th.join();
+                    //     }
                     // });
+
+                    // for(auto result: threadResults) {
+                    //     if(!result) {
+                    //         results[2] = false;
+                    //     }
+                    // }
+
+                    double removalTime = runTest([&] () {
+                        results[2] = removeItems<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
+                    });
                     if(!results[2]) {
                         std::cerr << "BAD REMOVE " << i << std::endl;
                         break;
