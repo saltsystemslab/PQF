@@ -322,6 +322,80 @@ struct CompressedSettings {
 
 
 
+struct MultithreadedWrapper {
+    static constexpr std::string_view name = "MultithreadedBenchmark";
+
+    template<typename FTWrapper>
+    static std::vector<double> run(Settings s) {
+        size_t numThreads = s.numThreads;
+        if(numThreads == 0) {
+            std::cerr << "Cannot have 0 threads!!" << std::endl;
+            return {};
+        }
+        if(numThreads > 1 && !FTWrapper::threaded) {
+            std::cerr << "Cannot test multiple threads when the filter does not support it!" << std::endl;
+            return {};
+        }
+
+        if(!s.maxLoadFactor) {
+            std::cerr << "Does not have a max load factor!" << std::endl;
+            return std::vector<double>{};
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+
+        using FT = typename FTWrapper::type;
+        size_t filterSlots = s.N;
+        size_t N = static_cast<size_t>(s.N * maxLoadFactor);
+        FT filter(filterSlots);
+
+        std::vector<size_t> keys = generateKeys<FT>(filter, N);
+        auto threadRanges = splitRange(0, N, numThreads);
+        std::vector<size_t> threadResults(numThreads);
+
+        std::vector<double> insTimes(numThreads);
+        std::vector<std::thread> threads;
+        for(size_t i = 0; i < numThreads; i++) {
+            threads.push_back(std::thread([&, i] {
+                insTimes[i] = runTest([&]() {
+                    threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
+                });
+            }));
+        }
+        for(auto& th: threads) {
+            th.join();
+        }
+
+        for(auto result: threadResults) {
+            if(!result) {
+                std::cerr << "FAILED" << std::endl;
+                break;
+            }
+        }
+
+        double insTime = 0;
+        for(double time: insTimes) {
+            // insTime += time;
+            insTime = std::max(time, insTime);
+        }
+        // insTime /= numThreads;
+        
+        return std::vector<double>{insTime};
+    }
+
+    template<typename FTWrapper>
+    static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
+        double avgInsTime = 0;
+        for(auto v: outputs) {
+            avgInsTime += v[0] / outputs.size();
+        }
+
+        double effectiveN = s.N * s.maxLoadFactor.value();
+        std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
+        fout << s.numThreads << " " << avgInsTime << " " << (effectiveN / avgInsTime) << std::endl;
+    }
+};
+
+
 struct BenchmarkWrapper {
     static constexpr std::string_view name = "Benchmark";
 
@@ -620,12 +694,12 @@ struct InsertDeleteWrapper {
             size_t i = 0;
             for(size_t j=0; j <= numTicks-1; j++, i++) {
                 double Nfailure = v[i];
-                double ratio = ((double)s.N) / Nfailure;
+                double ratio = Nfailure / ((double)s.N);
                 averageRandomFailureRatios[j] += ratio / outputs.size();
             }
             for(size_t j=0; j <= numTicks-1; j++, i++) {
                 double Nfailure = v[i];
-                double ratio = ((double)s.N) / Nfailure;
+                double ratio = Nfailure / ((double)s.N);
                 averageStreamingFailureRatios[j] += ratio / outputs.size();
             }
         }
@@ -899,6 +973,7 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         VQF_Wrapper, VQFT_Wrapper>;
 
 using TestWrapperTuple = std::tuple<BenchmarkWrapper, 
+MultithreadedWrapper, 
 // RandomInsertDeleteWrapper, StreamingInsertDeleteWrapper, 
 InsertDeleteWrapper,
 LoadFactorWrapper>;
