@@ -126,6 +126,10 @@ bool checkFunctional(FT& filter, const std::vector<size_t>& keysInFilter, std::m
     }
 
     bool success = checkQuery(filter, checkKeys, 0, checkKeys.size());
+    
+    if(!success) {
+        return false;
+    }
 
     std::vector<size_t> randomKeys = generateKeys(filter, checkQuerySize, 1);
     size_t numFalsePositives = getNumFalsePositives(filter, randomKeys, 0, randomKeys.size());
@@ -149,6 +153,7 @@ size_t streamingInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, 
 
         if(i % checkQueryInterval == 0) {
             if(!checkFunctional(filter, keysInFilter, generator, maxKeyCount)) {
+                std::cout << "Query failed at " << i << std::endl;
                 return i;
             }
         }
@@ -181,6 +186,7 @@ size_t randomInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, std
 
         if(i % checkQueryInterval == 0) {
             if(!checkFunctional(filter, keysInFilter, generator, maxKeyCount)) {
+                std::cout << "Query failed at " << i << std::endl;
                 return i;
             }
         }
