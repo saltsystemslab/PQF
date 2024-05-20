@@ -25,7 +25,8 @@ class VQFWrapper {
                 fprintf(stderr, "Insertion failed");
                 exit(EXIT_FAILURE);
             }
-            range = filter->metadata.range;
+            // range = filter->metadata.range;
+            range = -1ull;
         }
 
         bool insert(std::uint64_t hash) {
