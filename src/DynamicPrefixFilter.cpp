@@ -467,6 +467,19 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
 
 
 
+
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::PartitionQuotientFilter(const PartitionQuotientFilter& a, const PartitionQuotientFilter& b): 
+    capacity{a.capacity+b.capacity},
+    range{capacity << SizeRemainders},
+    frontyard(a.frontyard.size() + b.frontyard.size()),
+    backyard(a.backyard.size() + b.backyard.size())
+{
+    R = frontyard.size() / FrontyardToBackyardRatio / FrontyardToBackyardRatio + 1;
+    if(R % (FrontyardToBackyardRatio - 1) == 0) R++;
+}
+
 // double PartitionQuotientFilter::getAverageOverflow() {
 //     double overflow = 0.0;
 //     for(size_t o: overflows) overflow+=o;

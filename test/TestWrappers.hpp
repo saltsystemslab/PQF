@@ -30,10 +30,10 @@ class VQFWrapper {
         }
 
         bool insert(std::uint64_t hash) {
-
-            bool success = vqf_insert(filter, hash);
-            insertFailure = !success;
-            return success;
+            return vqf_insert(filter, hash);
+            // bool success = vqf_insert(filter, hash);
+            // insertFailure = !success;
+            // return success;
             // if constexpr (DynamicPrefixFilter::DEBUG || DynamicPrefixFilter::PARTIAL_DEBUG) {
             //     if (!vqf_insert(filter, hash)) {
             //         fprintf(stderr, "Insertion failed");

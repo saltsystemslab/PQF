@@ -10,6 +10,7 @@
 #include <atomic>
 #include <thread>
 #include <filesystem>
+#include <limits>
 
 //returns microseconds
 double runTest(std::function<void(void)> t) {
@@ -404,36 +405,63 @@ struct MultithreadedWrapper {
 
         std::vector<size_t> keys = generateKeys<FT>(filter, N);
         auto threadRanges = splitRange(0, N, numThreads);
-        std::vector<size_t> threadResults(numThreads);
+        // std::vector<size_t> threadResults(numThreads);
+        size_t *threadResults = new size_t[numThreads];
 
-        std::vector<double> insTimes(numThreads);
-        std::vector<std::thread> threads;
-        for(size_t i = 0; i < numThreads; i++) {
-            threads.push_back(std::thread([&, i] {
-                insTimes[i] = runTest([&]() {
+        // std::vector<double> insTimes(numThreads);
+        // std::vector<std::thread> threads;
+        // for(size_t i = 0; i < numThreads; i++) {
+        //     threads.push_back(std::thread([&, i] {
+        //         insTimes[i] = runTest([&]() {
+        //             threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
+        //         });
+        //     }));
+        // }
+        // for(auto& th: threads) {
+        //     th.join();
+        // }
+
+        double insertTime = runTest([&]() {
+            std::vector<std::thread> threads;
+            for(size_t i = 0; i < numThreads; i++) {
+                threads.push_back(std::thread([&, i] {
                     threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
-                });
-            }));
-        }
-        for(auto& th: threads) {
-            th.join();
-        }
+                    // if(!insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1])) {
+                    //     std::cerr << "FAILED" << std::endl;
+                    //     exit(1);
+                    // }
+                }));
+            }
+            for(auto& th: threads) {
+                th.join();
+            }
+        });
 
-        for(auto result: threadResults) {
-            if(!result) {
+        for(size_t i=0; i < numThreads; i++) {
+            if(!threadResults[i]) {
                 std::cerr << "FAILED" << std::endl;
-                break;
+                return std::vector<double>{std::numeric_limits<double>::max()};
             }
         }
 
-        double insTime = 0;
-        for(double time: insTimes) {
-            // insTime += time;
-            insTime = std::max(time, insTime);
-        }
-        // insTime /= numThreads;
+        delete threadResults;
+
+        // for(auto result: threadResults) {
+        //     if(!result) {
+        //         std::cerr << "FAILED" << std::endl;
+        //         break;
+        //     }
+        // }
+
+        // double insTime = 0;
+        // for(double time: insTimes) {
+        //     // insTime += time;
+        //     insTime = std::max(time, insTime);
+        // }
+        // // insTime /= numThreads;
         
-        return std::vector<double>{insTime};
+        // return std::vector<double>{insTime};
+        return std::vector<double>{insertTime};
     }
 
     template<typename FTWrapper>

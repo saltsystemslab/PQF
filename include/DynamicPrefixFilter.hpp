@@ -73,7 +73,7 @@ namespace DynamicPrefixFilter {
                 return vec[i];
             }
 
-            size_t size() {
+            size_t size() const {
                 return s;
             }
     };
@@ -110,6 +110,7 @@ namespace DynamicPrefixFilter {
             static constexpr double NormalizingFactor = (double)FrontyardBucketCapacity / (double) BucketNumMiniBuckets * (double)(1+FrontyardToBackyardRatio*FrontyardBucketSize/BackyardBucketSize)/(FrontyardToBackyardRatio*FrontyardBucketSize/BackyardBucketSize);
 
             static constexpr uint64_t HashMask = (1ull << SizeRemainders) - 1;
+            // const uint64_t RealRemainderSize, HashMask;
 
             static_assert(64 % FrontyardBucketSize == 0 && 64 % BackyardBucketSize == 0);
 
@@ -145,7 +146,10 @@ namespace DynamicPrefixFilter {
             // std::size_t normalizedCapacity;
             std::size_t capacity;
             std::size_t range;
+
             PartitionQuotientFilter(std::size_t N, bool Normalize = true);
+            PartitionQuotientFilter(const PartitionQuotientFilter& a, const PartitionQuotientFilter& b); //create new PQF by merging
+
             bool insert(std::uint64_t hash);
             void insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys); //Really lazy and not super optimized implementation just to show that morton filters can easily be beaten
             std::uint64_t queryWhere(std::uint64_t hash); //also queries where the item is (backyard or frontyard)
