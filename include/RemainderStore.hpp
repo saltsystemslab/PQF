@@ -27,6 +27,8 @@ namespace DynamicPrefixFilter {
 
         std::uint64_t removeFirst();
 
+        std::uint64_t get(std::size_t loc) const;
+
         // Original q: Should this even be vectorized really? Cause that would be more consistent, but probably slower on average since maxPossible-minPossible should be p small? Then again already overhead of working with bytes
         // Original plan was: Returns 0 if can definitely say this is not in the filter, 1 if definitely is, 2 if need to go to backyard
         // Feels like def a good idea to vectorize now
@@ -163,6 +165,10 @@ namespace DynamicPrefixFilter {
             std::uint_fast8_t first = remainders[0];
             remove(0);
             return first;
+        }
+
+        std::uint64_t get(std::size_t loc) const {
+            return remainders[loc];
         }
 
         // Original q: Should this even be vectorized really? Cause that would be more consistent, but probably slower on average since maxPossible-minPossible should be p small? Then again already overhead of working with bytes
@@ -329,6 +335,10 @@ namespace DynamicPrefixFilter {
             std::uint_fast8_t retval = get4Bits(remainders[loc/2], loc%2);
             remove(loc);
             return retval;
+        }
+
+        std::uint64_t get(std::size_t loc) const {
+            return get4Bits(remainders[loc/2], loc % 2);
         }
 
         std::uint_fast8_t removeFirst() {
@@ -498,6 +508,12 @@ namespace DynamicPrefixFilter {
             return retvalFirstPart + (retvalSecondPart << SizeFirst);
         }
 
+        std::uint64_t get(std::size_t loc) const{
+            uint64_t retvalFirstPart = storeFirstPart.get(loc);
+            uint64_t retvalSecondPart = storeSecondPart.get(loc);
+            return retvalFirstPart + (retvalSecondPart << SizeFirst);
+        }
+
         std::uint64_t query(std::uint64_t remainder, std::pair<size_t, size_t> bounds) {
             if constexpr (DEBUG) {
                 assert(remainder <= (1ull << (SizeFirst + SizeSecond)) - 1);
@@ -645,6 +661,10 @@ namespace DynamicPrefixFilter {
             std::uint_fast16_t retval = remainders[loc];
             remove(loc);
             return retval;
+        }
+
+        std::uint64_t get(std::size_t loc) const {
+            return remainders[loc];
         }
 
         std::uint_fast16_t removeFirst() {

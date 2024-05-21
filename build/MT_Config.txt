@@ -1,7 +1,8 @@
 MultithreadedBenchmark
-NumKeys 1048576 4194304 67108864 268435456
+NumKeys 1048576 4194304 67108864 
+# 268435456
 NumThreads 1
-NumTrials 3
+NumTrials 1
 NumReplicants 1
 LoadFactorTicks 20
 
@@ -10,7 +11,7 @@ MaxLoadFactor 0.93
 VQFT 
 
 MaxLoadFactor 0.83
-# PQF_8_21_FRQ_T 
+PQF_8_21_FRQ_T 
 
 MaxLoadFactor 0.915
 # PQF_8_52_FRQ_T 

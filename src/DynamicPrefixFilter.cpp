@@ -57,6 +57,8 @@ template class PartitionQuotientFilter<16, 35, 28, 22, 8, 64, 64, true, true>;
 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
 PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::PartitionQuotientFilter(std::size_t N, bool Normalize): 
+    RealRemainderSize{SizeRemainders},
+    HashMask{(1ull << SizeRemainders) - 1},
     capacity{Normalize ? static_cast<size_t>(N/NormalizingFactor) : N},
     range{capacity << SizeRemainders},
     frontyard((capacity+BucketNumMiniBuckets-1)/BucketNumMiniBuckets),
@@ -82,7 +84,8 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
         BackyardQRContainerType fb2(f, 1, R);
         assert(fb1.bucketIndex < backyard.size() && fb2.bucketIndex < backyard.size());
     }
-    return FrontyardQRContainerType(hash >> SizeRemainders, hash & HashMask);
+    // return FrontyardQRContainerType(hash >> SizeRemainders, hash & HashMask);
+    return FrontyardQRContainerType(hash >> RealRemainderSize, hash & HashMask);
 }
 
 
@@ -465,19 +468,79 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     return retval;
 }
 
-
-
-
-
+//Very limited merge function for now at least. Must be same size 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
 PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::PartitionQuotientFilter(const PartitionQuotientFilter& a, const PartitionQuotientFilter& b): 
+    RealRemainderSize{a.RealRemainderSize-1},
+    HashMask{(1ull << RealRemainderSize) - 1},
     capacity{a.capacity+b.capacity},
-    range{capacity << SizeRemainders},
+    range{a.range},
     frontyard(a.frontyard.size() + b.frontyard.size()),
     backyard(a.backyard.size() + b.backyard.size())
 {
     R = frontyard.size() / FrontyardToBackyardRatio / FrontyardToBackyardRatio + 1;
     if(R % (FrontyardToBackyardRatio - 1) == 0) R++;
+    
+    if(a.RealRemainderSize != b.RealRemainderSize || (a.capacity != b.capacity) || (a.range != b.range)) {
+        // std::cerr << "Merges must be of filters with the exact same properties" << std::endl;
+        throw std::invalid_argument("Merges must be of filters with the exact same properties");
+    }
+    
+
+    std::vector<std::pair<uint64_t, uint64_t>> afrontkeys(FrontyardBucketCapacity), bfrontkeys(FrontyardBucketCapacity);
+    std::vector<std::pair<uint64_t, uint64_t>> aback1keys(BackyardBucketCapacity), bback1keys(BackyardBucketCapacity);
+    std::vector<std::pair<uint64_t, uint64_t>> aback2keys(BackyardBucketCapacity), bback2keys(BackyardBucketCapacity);
+    std::vector<std::pair<uint64_t, uint64_t>> allKeys;
+    allKeys.reserve(2*FrontyardBucketCapacity + 4*BackyardBucketCapacity + 5);
+    for(size_t i=0; i < a.frontyard.size(); i++) {
+        a.frontyard[i].deconstruct(afrontkeys);
+        b.frontyard[i].deconstruct(bfrontkeys);
+        
+        FrontyardQRContainerType frontyardQR(i*BucketNumMiniBuckets, 0);
+        BackyardQRContainerType firstBackyardQR(frontyardQR, 0, a.R);
+        BackyardQRContainerType secondBackyardQR(frontyardQR, 1, a.R);
+        a.backyard[firstBackyardQR.bucketIndex].deconstruct(aback1keys);
+        b.backyard[firstBackyardQR.bucketIndex].deconstruct(bback1keys);
+        a.backyard[secondBackyardQR.bucketIndex].deconstruct(aback2keys);
+        b.backyard[secondBackyardQR.bucketIndex].deconstruct(bback2keys);
+
+        auto filterbackyard = [this] (std::vector<std::pair<uint64_t, uint64_t>>& v, std::vector<std::pair<uint64_t, uint64_t>>& o, BackyardQRContainerType b) {
+            for(auto x: v) {
+                if((x.second & (~HashMask)) == b.remainder) {
+                    o.push_back(std::make_pair(x.first, x.second & HashMask));
+                }
+            }
+        };
+        allKeys.insert(allKeys.end(), afrontkeys.begin(), afrontkeys.end());
+        allKeys.insert(allKeys.end(), bfrontkeys.begin(), bfrontkeys.end());
+        filterbackyard(aback1keys, allKeys, firstBackyardQR);
+        filterbackyard(aback2keys, allKeys, secondBackyardQR);
+        filterbackyard(bback1keys, allKeys, firstBackyardQR);
+        filterbackyard(bback2keys, allKeys, secondBackyardQR);
+
+        FrontyardQRContainerType temp(0, 0);
+        for(auto x: allKeys) {
+            uint64_t miniBucket = x.first;
+            uint64_t remainder = x.second;
+            uint64_t bucket = i*2;
+            if(remainder & 1) {
+                bucket++;
+            }
+            remainder >>= 1;
+            temp.bucketIndex = bucket;
+            temp.miniBucketIndex = miniBucket;
+            temp.remainder = remainder;
+            insertInner(temp);
+        }
+
+        afrontkeys.resize(0);
+        bfrontkeys.resize(0);
+        aback1keys.resize(0);
+        aback2keys.resize(0);
+        bback1keys.resize(0);
+        bback2keys.resize(0);
+        allKeys.resize(0);
+    }
 }
 
 // double PartitionQuotientFilter::getAverageOverflow() {

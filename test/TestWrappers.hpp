@@ -97,15 +97,45 @@ size_t sizeBBFF(size_t N) {
 
 template<typename SpareType, size_t (*SpareSpaceCalculator)(size_t)>
 size_t sizePF (size_t N) {
-    // constexpr float loads[2] = {.95, .95};
-    constexpr float loads[2] = {1.0, 1.0};
+    constexpr float loads[2] = {.95, .95};
+    // constexpr float loads[2] = {1.0, 1.0};
     double frontyardSize =  32 * std::ceil(1.0 * N / (min_pd::MAX_CAP0 * loads[0]));
     static double constexpr overflowing_items_ratio = 0.0586;
     size_t backyardSize = SpareSpaceCalculator(get_l2_slots<SpareType>(N, overflowing_items_ratio, loads));
     return backyardSize+frontyardSize;
 }
 
-template<typename FilterType, size_t (*SpaceCalculator)(size_t), bool CanRemove = false>
+
+
+
+
+
+
+
+double loadFactorMultiplierTC () {
+    return 0.935;
+}
+
+double loadFactorMultiplierCFF() {
+    return 0.94;
+}
+
+//BBF-Flex is SimdBlockFilterFixed?? Seems to be by the main-perf code, so I shall stick with it
+double loadFactorMultiplierBBFF() {
+    return 1.0; //difficult to speak of load factor with BBFF anyways and we won't be measuring it
+}
+
+template<typename SpareType>
+double loadFactorMultiplierPF() {
+    size_t max_items = 1'000'000'000ull;
+    constexpr float loads[2] = {.95, .95}; //as in the code
+    static double constexpr overflowing_items_ratio = 0.0586;
+    size_t l2Slots = get_l2_slots<SpareType>(max_items, overflowing_items_ratio, loads);
+    size_t l1Slots = std::ceil(1.0 * max_items / loads[0]);
+    return max_items / ((double) (l1Slots + l2Slots));
+}
+
+template<typename FilterType, double (*LFMultiplier)(), bool CanRemove = false>
 class PFFilterAPIWrapper {
     // using SpareType = TC_shortcut;
     // using PrefixFilterType = Prefix_Filter<SpareType>;
@@ -117,7 +147,13 @@ class PFFilterAPIWrapper {
         size_t range;
         bool insertFailure;
 
-        PFFilterAPIWrapper(size_t N): N{N}, filter{FilterAPI<FilterType>::ConstructFromAddCount(N)} {
+        static double reverseEngineerLoadFactorMultiplier () {
+            size_t N = 1'000'000;
+            const float l1LF = 0.95;
+            
+        }
+
+        PFFilterAPIWrapper(size_t N): N{N}, filter{FilterAPI<FilterType>::ConstructFromAddCount(static_cast<size_t>(LFMultiplier() * N))} {
             range = -1ull;
         }
 
@@ -136,7 +172,9 @@ class PFFilterAPIWrapper {
         std::uint64_t sizeFilter() {
             //Copied from wrappers.hpp and TC-Shortcut.hpp in Prefix-Filter
             //Size of frontyard
-            return SpaceCalculator(N);
+            // return SpaceCalculator(N);
+            // return filter.get_byte_size();
+            return FilterAPI<FilterType>::get_byte_size(&filter);
         }
 
         bool remove(std::uint64_t hash) {

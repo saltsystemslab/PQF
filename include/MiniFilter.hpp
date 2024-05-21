@@ -98,26 +98,26 @@ namespace DynamicPrefixFilter {
             __sync_fetch_and_and(fastCastFilter, UnlockMask);
         }
 
-        bool full() {
-            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+        bool full() const {
+            const uint64_t* fastCastFilter = reinterpret_cast<const uint64_t*> (&filterBytes);
             return *(fastCastFilter + NumUllongs - 1) & lastBitMask; //If the last element is a miniBucket separator, we know we are full! Otherwise, there are keys "waiting" to be allocated to a mini bucket.
         }
 
-        std::size_t select(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) {
+        std::size_t select(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
             uint64_t isolateBit = _pdep_u64(1ull << miniBucketSegmentIndex, filterSegment);
             // std::cout << miniBucketSegmentIndex << " " << isolateBit << std::endl;
             return __builtin_ctzll(isolateBit);
         }
 
-        std::size_t getKeyIndex(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) {
+        std::size_t getKeyIndex(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
             return select(filterSegment, miniBucketSegmentIndex) - miniBucketSegmentIndex;
         }
 
-        std::size_t selectNoCtzll(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) {
+        std::size_t selectNoCtzll(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
             return _pdep_u64(1ull << miniBucketSegmentIndex, filterSegment);
         }
 
-        std::size_t getKeyMask(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) {
+        std::size_t getKeyMask(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
             return selectNoCtzll(filterSegment, miniBucketSegmentIndex) >> miniBucketSegmentIndex;
         }
 
@@ -177,8 +177,8 @@ namespace DynamicPrefixFilter {
         }
 
         //Tells you which mini bucket a key belongs to. Really works same as queryMniBucketBeginning but just does bit inverse of fastCastFilter. Returns a number larger than the number of miniBuckets if keyIndex is nonexistent (should be--test this)
-        std::size_t queryWhichMiniBucket(std::size_t keyIndex) {
-            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+        std::size_t queryWhichMiniBucket(std::size_t keyIndex) const {
+            const uint64_t* fastCastFilter = reinterpret_cast<const uint64_t*> (&filterBytes);
             if constexpr (NumBytes <= 8) {
                 return getKeyIndex(~(*fastCastFilter), keyIndex);
             }

@@ -115,7 +115,7 @@ bool removeItems(FT& filter, const std::vector<size_t>& keys, size_t start, size
 }
 
 template<typename FT>
-bool checkFunctional(FT& filter, const std::vector<size_t>& keysInFilter, std::mt19937_64& generator, size_t maxKeyCount) {
+bool checkFunctional(FT& filter, const std::vector<size_t>& keysInFilter, std::mt19937_64& generator) {
     //Make configurable later
     size_t checkQuerySize = 1000;
     double minimumFPR = 0.05; //minimum false positive rate must maintain. should set relatively generously to avoid accidental failures as this is randomized ofc.
@@ -153,7 +153,7 @@ size_t streamingInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, 
         }
 
         if(i % checkQueryInterval == 0) {
-            if(!checkFunctional(filter, keysInFilter, generator, maxKeyCount)) {
+            if(!checkFunctional(filter, keysInFilter, generator)) {
                 std::cout << "Query failed at " << i << std::endl;
                 return i;
             }
@@ -186,7 +186,7 @@ size_t randomInsertDeleteTest(FT& filter, std::vector<size_t>& keysInFilter, std
         }
 
         if(i % checkQueryInterval == 0) {
-            if(!checkFunctional(filter, keysInFilter, generator, maxKeyCount)) {
+            if(!checkFunctional(filter, keysInFilter, generator)) {
                 std::cout << "Query failed at " << i << std::endl;
                 return i;
             }
@@ -377,6 +377,68 @@ struct CompressedSettings {
 
 
 
+struct MergeWrapper {
+    static constexpr std::string_view name = "MergeBenchmark";
+
+    template<typename FTWrapper>
+    static std::vector<double> run(Settings s) {
+        size_t numThreads = s.numThreads;
+        if(numThreads == 0) {
+            std::cerr << "Cannot have 0 threads!!" << std::endl;
+            return {};
+        }
+        if(numThreads > 1 && !FTWrapper::threaded) {
+            std::cerr << "Cannot test multiple threads when the filter does not support it!" << std::endl;
+            return {};
+        }
+
+        if(!s.maxLoadFactor) {
+            std::cerr << "Does not have a max load factor!" << std::endl;
+            return std::vector<double>{};
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+
+        using FT = typename FTWrapper::type;
+        size_t filterSlots = s.N;
+        size_t N = static_cast<size_t>(s.N * maxLoadFactor);
+        FT a(filterSlots);
+        FT b(filterSlots);
+
+        std::vector<size_t> keys = generateKeys<FT>(a, 2*N);
+        insertItems<FT>(a, keys, 0, N);
+        insertItems<FT>(b, keys, N, 2*N);
+        auto generator = createGenerator();
+
+        bool success = true;
+
+        double mergeTime = runTest([&] () {
+            FT c(a, b);
+            if(!checkFunctional(c, keys, generator)) {
+                std::cerr << "Merge failed" << endl;
+                success = false;
+            }
+        });
+
+        if(!success) {
+            return std::vector<double>{std::numeric_limits<double>::max()};
+        }
+        
+        return std::vector<double>{mergeTime};
+    }
+
+    template<typename FTWrapper>
+    static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
+        double avgInsTime = 0;
+        for(auto v: outputs) {
+            avgInsTime += v[0] / outputs.size();
+        }
+
+        double effectiveN = s.N * s.maxLoadFactor.value();
+        std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
+        fout << s.numThreads << " " << avgInsTime << " " << (effectiveN / avgInsTime) << std::endl;
+    }
+};
+
 struct MultithreadedWrapper {
     static constexpr std::string_view name = "MultithreadedBenchmark";
 
@@ -445,6 +507,11 @@ struct MultithreadedWrapper {
         }
 
         delete threadResults;
+
+        if(!checkQuery(filter, keys, 0, N)) {
+            std::cerr << "Multithreaded insertion failed" << std::endl;
+            return std::vector<double>{std::numeric_limits<double>::max()};
+        }
 
         // for(auto result: threadResults) {
         //     if(!result) {
@@ -823,7 +890,22 @@ struct LoadFactorWrapper {
         auto generator = createGenerator();
         
         size_t failureN = 0;
-        for(; filter.insert(generateKey(filter, generator)); failureN++);
+
+        size_t key = generateKey(filter, generator);
+        for(; ; failureN++) {
+            try {
+                if(!filter.insert(key)) {
+                    break;
+                }
+            }
+            catch(...) {
+                break;
+            }
+            if(!filter.query(key)) {
+                break;
+            }
+            key = generateKey(filter, generator);
+        }
 
         return std::vector<double>{static_cast<double>(failureN)};
     }
@@ -1060,7 +1142,15 @@ MultithreadedWrapper,
 InsertDeleteWrapper,
 LoadFactorWrapper>;
 
+using PQFTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wrapper, PQF_8_22BB_FRQ_Wrapper,
+        PQF_8_31_Wrapper, PQF_8_31_FRQ_Wrapper, PQF_8_62_Wrapper, PQF_8_62_FRQ_Wrapper,
+        PQF_8_53_Wrapper, PQF_8_53_FRQ_Wrapper, PQF_16_36_Wrapper, PQF_16_36_FRQ_Wrapper,
+        PQF_8_21_T_Wrapper, PQF_8_21_FRQ_T_Wrapper, PQF_8_52_T_Wrapper, PQF_8_52_FRQ_T_Wrapper,
+        PQF_16_35_T_Wrapper, PQF_16_35_FRQ_T_Wrapper>;
+
 using AllTester = TemplatedTester<FTTuple, TestWrapperTuple>;
+
+using MergeTester = TemplatedTester<PQFTuple, std::tuple<MergeWrapper>>;
 
 int main(int argc, char* argv[]) {
     if(argc < 3) {
@@ -1071,7 +1161,10 @@ int main(int argc, char* argv[]) {
     if(argc == 3) {
         AllTester::runTests(argv[1], argv[2]);
     }
-    else {
+    else if (argc == 4) {
         AllTester::runTests(argv[1], argv[2], argv[3]);
+    }
+    else if (argc == 5) {
+        MergeTester::runTests(argv[1], argv[2], argv[3]);
     }
 }

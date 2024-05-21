@@ -110,7 +110,8 @@ using PQF_16_35_FRQ_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_16_3
 
 //PF Types
 struct PF_TC_Wrapper {
-    using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
+    // using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
+    using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, loadFactorMultiplierPF<TC_shortcut>, false>;
     static constexpr std::string_view name = "PF_TC";
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
@@ -128,7 +129,8 @@ struct CF12_Flex_Wrapper {
 };
 
 struct PF_CFF12_Wrapper {
-    using type = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex_Wrapper::type, sizeCFF>>;
+    // using type = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex_Wrapper::type, sizeCFF>>;
+    using type = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, loadFactorMultiplierPF<CF12_Flex>>;
     static constexpr std::string_view name = "PF_CFF12";
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
@@ -136,7 +138,8 @@ struct PF_CFF12_Wrapper {
 };
 
 struct PF_BBFF_Wrapper {
-    using type = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+    // using type = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+    using type = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, loadFactorMultiplierPF<SimdBlockFilterFixed<>>>;
     static constexpr std::string_view name = "PF_BBFF";
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
@@ -144,7 +147,8 @@ struct PF_BBFF_Wrapper {
 };
 
 struct TC_Wrapper {
-    using type = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
+    // using type = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
+    using type = PFFilterAPIWrapper<TC_shortcut, loadFactorMultiplierTC, true>;
     static constexpr std::string_view name = "TC";
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
@@ -152,7 +156,8 @@ struct TC_Wrapper {
 };
 
 struct CFF12_Wrapper {
-    using type = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
+    // using type = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
+    using type = PFFilterAPIWrapper<CF12_Flex, loadFactorMultiplierCFF, true>;
     static constexpr std::string_view name = "CFF12";
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
@@ -160,7 +165,8 @@ struct CFF12_Wrapper {
 };
 
 struct BBFF_Wrapper {
-    using type = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
+    // using type = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
+    using type = PFFilterAPIWrapper<SimdBlockFilterFixed<>, loadFactorMultiplierBBFF>;
     static constexpr std::string_view name = "BBFF";
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;

@@ -109,8 +109,8 @@ namespace DynamicPrefixFilter {
 
             static constexpr double NormalizingFactor = (double)FrontyardBucketCapacity / (double) BucketNumMiniBuckets * (double)(1+FrontyardToBackyardRatio*FrontyardBucketSize/BackyardBucketSize)/(FrontyardToBackyardRatio*FrontyardBucketSize/BackyardBucketSize);
 
-            static constexpr uint64_t HashMask = (1ull << SizeRemainders) - 1;
-            // const uint64_t RealRemainderSize, HashMask;
+            // static constexpr uint64_t HashMask = (1ull << SizeRemainders) - 1;
+            const uint64_t RealRemainderSize, HashMask;
 
             static_assert(64 % FrontyardBucketSize == 0 && 64 % BackyardBucketSize == 0);
 
