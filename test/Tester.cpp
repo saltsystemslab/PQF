@@ -567,7 +567,6 @@ struct MultithreadedWrapper {
         }
         double maxLoadFactor = *(s.maxLoadFactor);
         size_t maxLoadFactorPct = std::llround(maxLoadFactor * 100);
-        std::cout << maxLoadFactorPct << std::endl;
         outputFolder /= std::to_string(maxLoadFactorPct);
         std::filesystem::create_directories(outputFolder);
         std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
