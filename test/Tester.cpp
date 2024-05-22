@@ -449,9 +449,15 @@ struct MergeWrapper {
             avgInsTime += v[0] / outputs.size();
         }
 
+        if(!s.maxLoadFactor) {
+            std::cerr << "Missing max load factor" << std::endl;
+            return;
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+
         double effectiveN = s.N * s.maxLoadFactor.value();
         std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
-        fout << s.numThreads << " " << avgInsTime << " " << (effectiveN / avgInsTime) << std::endl;
+        fout << maxLoadFactor << " " << avgInsTime << " " << (effectiveN / avgInsTime) << std::endl;
     }
 };
 
@@ -561,7 +567,10 @@ struct MultithreadedWrapper {
         }
         double maxLoadFactor = *(s.maxLoadFactor);
         size_t maxLoadFactorPct = std::llround(maxLoadFactor * 100);
-        std::ofstream fout(outputFolder / std::to_string(maxLoadFactorPct) / (std::to_string(s.N) + ".txt"), std::ios_base::app);
+        std::cout << maxLoadFactorPct << std::endl;
+        outputFolder /= std::to_string(maxLoadFactorPct);
+        std::filesystem::create_directories(outputFolder);
+        std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
         fout << s.numThreads << " " << avgInsTime << " " << (effectiveN / avgInsTime) << std::endl;
     }
 };
@@ -778,7 +787,7 @@ struct BenchmarkWrapper {
         std::ofstream fins(outputFolder / "insert.txt");
         std::ofstream fsquery(outputFolder / "squery.txt");
         std::ofstream frquery(outputFolder / "rquery.txt");
-        // std::ofstream ffpr(outputFolder / "fpr.txt");
+        std::ofstream ffpr(outputFolder / "fpr.txt");
         std::ofstream fremoval(outputFolder / "removal.txt");
         std::ofstream fefficiency(outputFolder / "efficiency.txt");
         for(size_t i=0; i < s.loadFactorTicks; i++) {
@@ -790,7 +799,7 @@ struct BenchmarkWrapper {
             fins << efficiency << " " << (effectiveN / averageInsertTimes[i]) << "\n";
             fsquery << efficiency << " " << (effectiveN / averageSuccessfulQueryTimes[i]) << "\n";
             frquery << efficiency << " " << (effectiveN / averageRandomQueryTimes[i]) << "\n";
-            // ffpr << efficiency << " " << averageFalsePositiveRates[i] << "\n";
+            ffpr << efficiency << " " << averageFalsePositiveRates[i] << "\n";
             if (printDeletes) {
                 fremoval << efficiency << " " << (effectiveN / averageDeleteTimes[i]) << "\n";
             }
