@@ -549,6 +549,8 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
         // }
         // std::cout <<  allKeys.size() << std::endl;
 
+        // std::sort(allKeys.begin(), allKeys.end());
+
         FrontyardQRContainerType temp(0, 0);
         for(size_t j=0; j < allKeys.size(); j++) {
             auto x = allKeys[j];

@@ -27,6 +27,12 @@ double runTest(std::function<void(void)> t) {
 }
 
 std::vector<size_t> splitRange(size_t start, size_t end, size_t numSegs) {
+    if(numSegs == 0) { //bad code lol
+        if(start != end) {
+            std::cerr << "0 segs and start is not end!!" << std::endl;
+        }
+        return std::vector<size_t>{start};
+    }
     // std::cout << start << " " << end << " " << numSegs << std::endl;
     std::vector<size_t> ans(numSegs+1);
     for(size_t i=0; i<=numSegs; i++) {
@@ -136,9 +142,10 @@ bool checkFunctional(FT& filter, const std::vector<size_t>& keysInFilter, std::m
     std::vector<size_t> randomKeys = generateKeys(filter, checkQuerySize, 1);
     size_t numFalsePositives = getNumFalsePositives(filter, randomKeys, 0, randomKeys.size());
     double fpr = ((double) numFalsePositives) / randomKeys.size();
-    if(fpr < minimumFPR) {
+    if(fpr > minimumFPR) {
         std::cerr << fpr << std::endl;
-        success = false;
+        // success = false;
+        return false;
     }
 
     return true;
@@ -528,12 +535,34 @@ struct MultithreadedWrapper {
             }
         }
 
+
+        std::vector<std::thread> threads;
+        for(size_t i = 0; i < numThreads; i++) {
+            threads.push_back(std::thread([&, i] {
+                threadResults[i] = checkQuery<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
+                // if(!insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1])) {
+                //     std::cerr << "FAILED" << std::endl;
+                //     exit(1);
+                // }
+            }));
+        }
+        for(auto& th: threads) {
+            th.join();
+        }
+
+        for(size_t i=0; i < numThreads; i++) {
+            if(!threadResults[i]) {
+                std::cerr << "FAILED" << std::endl;
+                return std::vector<double>{std::numeric_limits<double>::max()};
+            }
+        }
+
         delete threadResults;
 
-        if(!checkQuery(filter, keys, 0, N)) {
-            std::cerr << "Multithreaded insertion failed" << std::endl;
-            return std::vector<double>{std::numeric_limits<double>::max()};
-        }
+        // if(!checkQuery(filter, keys, 0, N)) {
+        //     std::cerr << "Multithreaded insertion failed" << std::endl;
+        //     return std::vector<double>{std::numeric_limits<double>::max()};
+        // }
 
         // for(auto result: threadResults) {
         //     if(!result) {
@@ -831,7 +860,9 @@ struct InsertDeleteWrapper {
         size_t maxN = static_cast<size_t>(filterSlots * maxLoadFactor);
         size_t maxInsDeleteKeys = static_cast<size_t>(filterSlots * maxInsertDeleteRatio);
 
+        // std::cout << "GOOOOO" << std::endl;
         std::vector<size_t> tickRanges = splitRange(minN, maxN, numTicks-1); //normally represents ranges, but here we represent exact values so that's why numTicks-1
+        // std::cout << "GOOOOO" << std::endl;
         std::vector<double> results;
         
         //Random test
