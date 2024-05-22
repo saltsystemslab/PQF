@@ -918,6 +918,13 @@ struct InsertDeleteWrapper {
         std::ofstream fstreaming(outputFolder / "streamingRatios.txt", std::ios_base::app);
         for(size_t i = 0; i <= numTicks-1; i++) {
             double lf = minLoadFactor + (maxLoadFactor-minLoadFactor) * i / (numTicks-1);
+            if(numTicks-1 == 0) {
+                if(minLoadFactor != maxLoadFactor) {
+                    std::cerr << "0 segs and start is not end!!" << std::endl;
+                    return;
+                }
+                lf = minLoadFactor;
+            }
             frandom << lf << " " << averageRandomFailureRatios[i] << "\n";
             fstreaming << lf << " " << averageStreamingFailureRatios[i] << "\n";
         }

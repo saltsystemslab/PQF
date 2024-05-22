@@ -18,7 +18,7 @@ class VQFWrapper {
 
     public:
         size_t range;
-        bool insertFailure;
+        // bool insertFailure;
 
         VQFWrapper(size_t nslots): nslots{nslots} {
             if ((filter = vqf_init(nslots)) == NULL) {
@@ -145,13 +145,7 @@ class PFFilterAPIWrapper {
 
     public:
         size_t range;
-        bool insertFailure;
-
-        static double reverseEngineerLoadFactorMultiplier () {
-            size_t N = 1'000'000;
-            const float l1LF = 0.95;
-            
-        }
+        // bool insertFailure;
 
         PFFilterAPIWrapper(size_t N): N{N}, filter{FilterAPI<FilterType>::ConstructFromAddCount(static_cast<size_t>(LFMultiplier() * N))} {
             range = -1ull;
@@ -196,7 +190,7 @@ class CuckooWrapper{
 
     public:
         size_t range;
-        bool insertFailure;
+        // bool insertFailure;
 
         CuckooWrapper(size_t N): N{N}, filter{FT(N)} {
             range = -1ull;
@@ -206,7 +200,7 @@ class CuckooWrapper{
             ST status = filter.Add(hash);
             bool failure = status == cuckoofilter::NotEnoughSpace;
             // insertFailure = !FilterAPI<FilterType>::Add_attempt(hash, &filter);
-            insertFailure = failure;
+            // insertFailure = failure;
             return !failure;
         }
 
@@ -233,7 +227,7 @@ class MortonWrapper{
 
     public:
         size_t range;
-        bool insertFailure;
+        // bool insertFailure;
 
         MortonWrapper(size_t N): N{N}, filter{FT(N)} {
             range = -1ull;
@@ -241,7 +235,7 @@ class MortonWrapper{
 
         bool insert(std::uint64_t hash) {
             bool failure = filter.insert(hash);
-            insertFailure = failure;
+            // insertFailure = failure;
             return failure;
         }
 
