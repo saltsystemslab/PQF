@@ -281,10 +281,10 @@ namespace DynamicPrefixFilter {
 
 
         void deconstruct(std::vector<std::pair<uint64_t, uint64_t>>& v) const {
-            assert(v.size() >= NumKeys);
             for(size_t i=0; i < NumKeys; i++) {
                 std::pair<uint64_t, uint64_t> x = {miniFilter.queryWhichMiniBucket(i), remainderStore.get(i)};
                 if(x.first == NumMiniBuckets) continue;
+                // std::cout << x.first << " " << x.second << std::endl;
                 v.push_back(x);
             }
         }

@@ -89,6 +89,7 @@ template<typename FT>
 bool checkQuery(FT& filter, const std::vector<size_t>& keys, size_t start, size_t end) {
     for(size_t i{start}; i < end; i++) {
         if(!filter.query(keys[i])) {
+            std::cerr << "zzoo " << i << std::endl;
             return false;
         }
     }
@@ -136,6 +137,7 @@ bool checkFunctional(FT& filter, const std::vector<size_t>& keysInFilter, std::m
     size_t numFalsePositives = getNumFalsePositives(filter, randomKeys, 0, randomKeys.size());
     double fpr = ((double) numFalsePositives) / randomKeys.size();
     if(fpr < minimumFPR) {
+        std::cerr << fpr << std::endl;
         success = false;
     }
 
@@ -406,16 +408,30 @@ struct MergeWrapper {
 
         std::vector<size_t> keys = generateKeys<FT>(a, 2*N);
         insertItems<FT>(a, keys, 0, N);
+        if(!checkQuery(a, keys, 0, N)) {
+            std::cerr << "Failed to insert into a" << std::endl;
+            return std::vector<double>{std::numeric_limits<double>::max()};
+        }
         insertItems<FT>(b, keys, N, 2*N);
+        if(!checkQuery(b, keys, N, 2*N)) {
+            std::cerr << "Failed to insert into b" << std::endl;
+            return std::vector<double>{std::numeric_limits<double>::max()};
+        }
         auto generator = createGenerator();
 
         bool success = true;
 
         double mergeTime = runTest([&] () {
             FT c(a, b);
+            // if(!checkQuery(c, keys, 0, 2*N)) {
+            //     std::cerr << "Merge failed" << endl;
+            //     success = false;
+            //     exit(-1);
+            // }
             if(!checkFunctional(c, keys, generator)) {
                 std::cerr << "Merge failed" << endl;
                 success = false;
+                exit(-1);
             }
         });
 
@@ -539,7 +555,13 @@ struct MultithreadedWrapper {
         }
 
         double effectiveN = s.N * s.maxLoadFactor.value();
-        std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
+        if(!s.maxLoadFactor) {
+            std::cerr << "Missing max load factor" << std::endl;
+            return;
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+        size_t maxLoadFactorPct = std::llround(maxLoadFactor * 100);
+        std::ofstream fout(outputFolder / std::to_string(maxLoadFactorPct) / (std::to_string(s.N) + ".txt"), std::ios_base::app);
         fout << s.numThreads << " " << avgInsTime << " " << (effectiveN / avgInsTime) << std::endl;
     }
 };

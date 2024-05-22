@@ -1,8 +1,11 @@
 #include "DynamicPrefixFilter.hpp"
+#include "TestUtility.hpp"
 #include <optional>
 #include <iostream>
 #include <map>
 #include <utility>
+#include <set>
+#include <random>
 
 using namespace DynamicPrefixFilter;
 
@@ -158,6 +161,7 @@ template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size
 bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::insertOverflow(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR) {
     // BackyardQRContainerType firstBackyardQR(overflow, 0, R);
     // BackyardQRContainerType secondBackyardQR(overflow, 1, R);
+    // std::cout << "GOOGGG  " << firstBackyardQR.bucketIndex << " " << secondBackyardQR.bucketIndex << std::endl;
     if constexpr (DEBUG) {
         if(backyardToFrontyard.count(std::make_pair(firstBackyardQR.bucketIndex, firstBackyardQR.whichFrontyardBucket)) == 0) {
             backyardToFrontyard[std::make_pair(firstBackyardQR.bucketIndex, firstBackyardQR.whichFrontyardBucket)] = overflow.bucketIndex;
@@ -202,10 +206,17 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
                 failureBucket1 = firstBackyardQR.bucketIndex;
                 failureBucket2 = secondBackyardQR.bucketIndex;
                 failureWFB = firstBackyardQR.whichFrontyardBucket;
+                if(!success) {
+                    std::cerr << firstBackyardQR.bucketIndex << " " << secondBackyardQR.bucketIndex << std::endl;
+                }
                 return success;
             }
             else {
-                return backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
+                // return backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
+                if(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex != -1ull) {
+                    std::cerr << firstBackyardQR.bucketIndex << " " << secondBackyardQR.bucketIndex << std::endl;
+                    return false;
+                }
             }
         }
         // assert(query(hash));
@@ -470,7 +481,7 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
 
 //Very limited merge function for now at least. Must be same size 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
-PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::PartitionQuotientFilter(const PartitionQuotientFilter& a, const PartitionQuotientFilter& b): 
+PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::PartitionQuotientFilter(const PartitionQuotientFilter& a, const PartitionQuotientFilter& b, std::optional<std::vector<size_t>> verifykeys):
     RealRemainderSize{a.RealRemainderSize-1},
     HashMask{(1ull << RealRemainderSize) - 1},
     capacity{a.capacity+b.capacity},
@@ -487,11 +498,26 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
     }
     
 
-    std::vector<std::pair<uint64_t, uint64_t>> afrontkeys(FrontyardBucketCapacity), bfrontkeys(FrontyardBucketCapacity);
-    std::vector<std::pair<uint64_t, uint64_t>> aback1keys(BackyardBucketCapacity), bback1keys(BackyardBucketCapacity);
-    std::vector<std::pair<uint64_t, uint64_t>> aback2keys(BackyardBucketCapacity), bback2keys(BackyardBucketCapacity);
+    std::vector<std::pair<uint64_t, uint64_t>> afrontkeys, bfrontkeys;
+    afrontkeys.reserve(FrontyardBucketCapacity);
+    bfrontkeys.reserve(FrontyardBucketCapacity);
+    std::vector<std::pair<uint64_t, uint64_t>> aback1keys, bback1keys;
+    std::vector<std::pair<uint64_t, uint64_t>> aback2keys, bback2keys;
+    aback1keys.reserve(BackyardBucketCapacity);
+    aback2keys.reserve(BackyardBucketCapacity);
+    bback1keys.reserve(BackyardBucketCapacity);
+    bback2keys.reserve(BackyardBucketCapacity);
     std::vector<std::pair<uint64_t, uint64_t>> allKeys;
     allKeys.reserve(2*FrontyardBucketCapacity + 4*BackyardBucketCapacity + 5);
+
+    std::multiset<uint64_t> keyset;
+    if(verifykeys) {
+        keyset.insert(verifykeys->begin(), verifykeys->end());
+    }
+
+    std::vector<FrontyardQRContainerType> overflow;
+    std::vector<uint64_t> insertedKeys;
+
     for(size_t i=0; i < a.frontyard.size(); i++) {
         a.frontyard[i].deconstruct(afrontkeys);
         b.frontyard[i].deconstruct(bfrontkeys);
@@ -504,33 +530,65 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
         a.backyard[secondBackyardQR.bucketIndex].deconstruct(aback2keys);
         b.backyard[secondBackyardQR.bucketIndex].deconstruct(bback2keys);
 
-        auto filterbackyard = [this] (std::vector<std::pair<uint64_t, uint64_t>>& v, std::vector<std::pair<uint64_t, uint64_t>>& o, BackyardQRContainerType b) {
+        auto filterbackyard = [&a] (std::vector<std::pair<uint64_t, uint64_t>>& v, std::vector<std::pair<uint64_t, uint64_t>>& o, BackyardQRContainerType b) {
             for(auto x: v) {
-                if((x.second & (~HashMask)) == b.remainder) {
-                    o.push_back(std::make_pair(x.first, x.second & HashMask));
+                if((x.second & (~a.HashMask)) == b.remainder) {
+                    o.push_back(std::make_pair(x.first, x.second & a.HashMask));
                 }
             }
         };
         allKeys.insert(allKeys.end(), afrontkeys.begin(), afrontkeys.end());
         allKeys.insert(allKeys.end(), bfrontkeys.begin(), bfrontkeys.end());
+
+        // std::cout << "GOOOfff " << allKeys.size() << " ";
         filterbackyard(aback1keys, allKeys, firstBackyardQR);
-        filterbackyard(aback2keys, allKeys, secondBackyardQR);
         filterbackyard(bback1keys, allKeys, firstBackyardQR);
+        // if(secondBackyardQR.bucketIndex != firstBackyardQR.bucketIndex) {
+        filterbackyard(aback2keys, allKeys, secondBackyardQR);
         filterbackyard(bback2keys, allKeys, secondBackyardQR);
+        // }
+        // std::cout <<  allKeys.size() << std::endl;
 
         FrontyardQRContainerType temp(0, 0);
-        for(auto x: allKeys) {
-            uint64_t miniBucket = x.first;
-            uint64_t remainder = x.second;
-            uint64_t bucket = i*2;
-            if(remainder & 1) {
-                bucket++;
+        for(size_t j=0; j < allKeys.size(); j++) {
+            auto x = allKeys[j];
+            // uint64_t miniBucket = x.first;
+            // uint64_t remainder = x.second;
+            // uint64_t bucket = i*2;
+            // if(remainder & 1) {
+            //     bucket++;
+            // }
+            // remainder >>= 1;
+            // temp.bucketIndex = bucket;
+            // temp.miniBucketIndex = miniBucket;
+            // temp.remainder = remainder;
+            // insertInner(temp);
+            uint64_t key = x.second + ((x.first + BucketNumMiniBuckets * i) << a.RealRemainderSize);
+            // if(!insert(key)) {
+            //     std::cerr << "FAILED TO MERGE: " << i << " " << j << std::endl;
+            // }
+            FrontyardQRContainerType frontyardQR = getQRPairFromHash(key);
+            if(verifykeys) {
+                insertedKeys.push_back(key);
+                if(keyset.count(key) > 0) {
+                    keyset.extract(key);
+                }
+                else {
+                    std::cerr << "FAILED TO MERGE " << i << " " << j << std::endl;
+                    exit(-1);
+                }
             }
-            remainder >>= 1;
-            temp.bucketIndex = bucket;
-            temp.miniBucketIndex = miniBucket;
-            temp.remainder = remainder;
-            insertInner(temp);
+            auto overflowQR = frontyard[frontyardQR.bucketIndex].insert(frontyardQR);
+            if(overflowQR.miniBucketIndex != -1ull) {
+                // overflow.push_back(key);
+                overflow.push_back(overflowQR);
+            }
+            else {
+                if(!query(key)) {
+                    std::cerr << "Nani? " << i << " " << j << std::endl;
+                    exit(-1);
+                }
+            }
         }
 
         afrontkeys.resize(0);
@@ -540,6 +598,46 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
         bback1keys.resize(0);
         bback2keys.resize(0);
         allKeys.resize(0);
+    }
+
+    auto generator = std::mt19937_64(std::random_device()());
+    std::shuffle(overflow.begin(), overflow.end(), generator);
+    for(size_t i=0; i < overflow.size(); i++) {
+        auto qr = overflow[i];
+        BackyardQRContainerType firstBackyardQR(qr, 0, R);
+        BackyardQRContainerType secondBackyardQR(qr, 1, R);
+        if(!insertOverflow(qr, firstBackyardQR, secondBackyardQR)) {
+            std::cerr << "Failed goomogus" << std::endl;
+            exit(-1);
+        }
+
+        if(verifykeys) {
+            uint64_t key = qr.remainder + ((qr.miniBucketIndex + BucketNumMiniBuckets * qr.bucketIndex) << RealRemainderSize);
+            // if(keyset.count(key) > 0) {
+            //     keyset.extract(key);
+            // }
+            // else {
+            //     std::cerr << "FAILED TO MERGE BACK " << i << std::endl;
+            //     exit(-1);
+            // }
+            insertedKeys.push_back(key);
+            if(!query(key)) {
+                std::cerr << "Nani? " << i << std::endl;
+                exit(-1);
+            }
+        }
+    }
+    
+    if(keyset.size() > 0) {
+        std::cerr << "MISSED KEYS. Keys left: " << keyset.size() << std::endl;
+        exit(-1);
+    }
+
+    for(size_t i=0; i < insertedKeys.size(); i++) {
+        if(!query(insertedKeys[i])) {
+            std::cerr << "NNaaanii?? " << i << std::endl;
+            exit(-1);
+        }
     }
 }
 

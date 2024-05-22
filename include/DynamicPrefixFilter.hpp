@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
+#include <vector>
 #include "Bucket.hpp"
 #include "QRContainers.hpp"
 #include "RemainderStore.hpp"
@@ -148,7 +150,7 @@ namespace DynamicPrefixFilter {
             std::size_t range;
 
             PartitionQuotientFilter(std::size_t N, bool Normalize = true);
-            PartitionQuotientFilter(const PartitionQuotientFilter& a, const PartitionQuotientFilter& b); //create new PQF by merging
+            PartitionQuotientFilter(const PartitionQuotientFilter& a, const PartitionQuotientFilter& b, std::optional<std::vector<size_t>> verifykeys = {}); //create new PQF by merging
 
             bool insert(std::uint64_t hash);
             void insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys); //Really lazy and not super optimized implementation just to show that morton filters can easily be beaten
