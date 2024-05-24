@@ -33,11 +33,9 @@ std::vector<size_t> splitRange(size_t start, size_t end, size_t numSegs) {
         }
         return std::vector<size_t>{start};
     }
-    // std::cout << start << " " << end << " " << numSegs << std::endl;
     std::vector<size_t> ans(numSegs+1);
     for(size_t i=0; i<=numSegs; i++) {
         ans[i] = start + (end-start) * i / numSegs;
-        // std::cout << i << " " << ans[i] << std::endl;
     }
     return ans;
 }
@@ -123,7 +121,6 @@ bool removeItems(FT& filter, const std::vector<size_t>& keys, size_t start, size
 
 template<typename FT>
 bool checkFunctional(FT& filter, const std::vector<size_t>& keysInFilter, std::mt19937_64& generator) {
-    //Make configurable later
     size_t checkQuerySize = 1000;
     double minimumFPR = 0.05; //minimum false positive rate must maintain. should set relatively generously to avoid accidental failures as this is randomized ofc.
 
@@ -144,7 +141,6 @@ bool checkFunctional(FT& filter, const std::vector<size_t>& keysInFilter, std::m
     double fpr = ((double) numFalsePositives) / randomKeys.size();
     if(fpr > minimumFPR) {
         std::cerr << fpr << std::endl;
-        // success = false;
         return false;
     }
 
@@ -228,17 +224,13 @@ struct Settings {
     size_t numReplicants = 1; 
     size_t numThreads{1};
     size_t loadFactorTicks = 1;
-    std::optional<double> maxLoadFactor; //optional since its a necessary value to set
+    std::optional<double> maxLoadFactor; //optional since its a necessary value to set and has no reasonable default
     double minLoadFactor = 0.0;
     double maxInsertDeleteRatio = 10.0;
 
     auto getTuple() const {
         return std::tie(TestName, FTName, N, numReplicants, numThreads, loadFactorTicks, maxLoadFactor, minLoadFactor, maxInsertDeleteRatio);
     }
-
-    // bool complete() {
-    //     return (Ns.size() > 0) && numTrials.has_value() && loadFactorIncrement.has_value() && maxLoadFactor.has_value();
-    // }
 
     bool operator==(const Settings& rhs) const {
         return getTuple() == rhs.getTuple();
@@ -319,8 +311,6 @@ size_t roundDoublePos(double d) {
 }
 
 struct CompressedSettings {
-    // const static std::set<std::string> TestTypes{"Benchmark", "RandomInsertDelete", "StreamingInsertDelete", "LoadFactor"};
-
     std::string TestName;
     std::string FTName;
     std::vector<size_t> Ns;
@@ -496,31 +486,13 @@ struct MultithreadedWrapper {
 
         std::vector<size_t> keys = generateKeys<FT>(filter, N);
         auto threadRanges = splitRange(0, N, numThreads);
-        // std::vector<size_t> threadResults(numThreads);
         size_t *threadResults = new size_t[numThreads];
-
-        // std::vector<double> insTimes(numThreads);
-        // std::vector<std::thread> threads;
-        // for(size_t i = 0; i < numThreads; i++) {
-        //     threads.push_back(std::thread([&, i] {
-        //         insTimes[i] = runTest([&]() {
-        //             threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
-        //         });
-        //     }));
-        // }
-        // for(auto& th: threads) {
-        //     th.join();
-        // }
 
         double insertTime = runTest([&]() {
             std::vector<std::thread> threads;
             for(size_t i = 0; i < numThreads; i++) {
                 threads.push_back(std::thread([&, i] {
                     threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
-                    // if(!insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1])) {
-                    //     std::cerr << "FAILED" << std::endl;
-                    //     exit(1);
-                    // }
                 }));
             }
             for(auto& th: threads) {
@@ -540,10 +512,6 @@ struct MultithreadedWrapper {
         for(size_t i = 0; i < numThreads; i++) {
             threads.push_back(std::thread([&, i] {
                 threadResults[i] = checkQuery<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
-                // if(!insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1])) {
-                //     std::cerr << "FAILED" << std::endl;
-                //     exit(1);
-                // }
             }));
         }
         for(auto& th: threads) {
@@ -559,26 +527,6 @@ struct MultithreadedWrapper {
 
         delete threadResults;
 
-        // if(!checkQuery(filter, keys, 0, N)) {
-        //     std::cerr << "Multithreaded insertion failed" << std::endl;
-        //     return std::vector<double>{std::numeric_limits<double>::max()};
-        // }
-
-        // for(auto result: threadResults) {
-        //     if(!result) {
-        //         std::cerr << "FAILED" << std::endl;
-        //         break;
-        //     }
-        // }
-
-        // double insTime = 0;
-        // for(double time: insTimes) {
-        //     // insTime += time;
-        //     insTime = std::max(time, insTime);
-        // }
-        // // insTime /= numThreads;
-        
-        // return std::vector<double>{insTime};
         return std::vector<double>{insertTime};
     }
 
@@ -645,26 +593,7 @@ struct BenchmarkWrapper {
         results.push_back(true); //if removals succeeded
         for(size_t i=0; i < numTicks; i++) {
             size_t numFalsePositives;
-            // std::cout << tickRanges[i] << "\n";
-
-            // auto threadRanges = splitRange(tickRanges[i], tickRanges[i+1], numThreads);
-            // std::vector<size_t> threadResults(numThreads);
-
-            // double insTime = runTest([&]() {
-            //     std::vector<std::thread> threads;
-            //     for(size_t i = 0; i < numThreads; i++) {
-            //         threads.push_back(std::thread([&, i] {threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
-            //     }
-            //     for(auto& th: threads) {
-            //         th.join();
-            //     }
-            // });
-
-            // for(auto result: threadResults) {
-            //     if(!result) {
-            //         results[0] = false;
-            //     }
-            // }
+            
             double insTime = runTest([&]() {
                 results[0] = insertItems<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
             });
@@ -673,20 +602,6 @@ struct BenchmarkWrapper {
                 break;
             }
 
-            // double successfulQueryTime = runTest([&]() {
-            //     std::vector<std::thread> threads;
-            //     for(size_t i = 0; i < numThreads; i++) {
-            //         threads.push_back(std::thread([&, i] {threadResults[i] = checkQuery<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
-            //     }
-            //     for(auto& th: threads) {
-            //         th.join();
-            //     }
-            // });
-            // for(auto result: threadResults) {
-            //     if(!result) {
-            //         results[1] = false;
-            //     }
-            // }
             double successfulQueryTime = runTest([&]() {
                 results[1] = checkQuery<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
             });
@@ -695,27 +610,11 @@ struct BenchmarkWrapper {
                 break;
             }
 
-            // double randomQueryTime = runTest([&]() {
-            //     std::vector<std::thread> threads;
-            //     for(size_t i = 0; i < numThreads; i++) {
-            //         threads.push_back(std::thread([&, i] {threadResults[i] = getNumFalsePositives<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
-            //     }
-            //     for(auto& th: threads) {
-            //         th.join();
-            //     }
-            // });
-            
-            // size_t numFalsePositives = 0;
-            // for(auto res: threadResults) {
-            //     numFalsePositives += res;
-            // }
-
             double randomQueryTime = runTest([&]() {
                 numFalsePositives = getNumFalsePositives<FT>(filter, fprKeys, tickRanges[i], tickRanges[i+1]);
             });
 
             double falsePositiveRate = ((double) numFalsePositives) / (tickRanges[i+1] - tickRanges[i]);
-            // std::cout << "goo " << numFalsePositives << " " << falsePositiveRate << std::endl;
 
             results.insert(results.end(), {insTime, successfulQueryTime, randomQueryTime, falsePositiveRate, static_cast<double>(filter.sizeFilter())}); //adding size filter just in case decide to ever make size dynamic
         }
@@ -724,24 +623,6 @@ struct BenchmarkWrapper {
             if (results[0] && results[1]) {
                 std::vector<double> removalTimes;
                 for(size_t i=0; i < numTicks; i++) {
-                    // auto threadRanges = splitRange(tickRanges[i], tickRanges[i+1], numThreads);
-                    // std::vector<size_t> threadResults(numThreads);
-
-                    // double removalTime = runTest([&]() {
-                    //     std::vector<std::thread> threads;
-                    //     for(size_t i = 0; i < numThreads; i++) {
-                    //         threads.push_back(std::thread([&, i] {threadResults[i] = removeItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);}));
-                    //     }
-                    //     for(auto& th: threads) {
-                    //         th.join();
-                    //     }
-                    // });
-
-                    // for(auto result: threadResults) {
-                    //     if(!result) {
-                    //         results[2] = false;
-                    //     }
-                    // }
 
                     double removalTime = runTest([&] () {
                         results[2] = removeItems<FT>(filter, keys, tickRanges[i], tickRanges[i+1]);
@@ -750,7 +631,7 @@ struct BenchmarkWrapper {
                         std::cerr << "BAD REMOVE " << i << std::endl;
                         break;
                     }
-                    // results.push_back(removalTime);
+                    
                     removalTimes.push_back(removalTime);
                 }
                 results.insert(results.end(), removalTimes.rbegin(), removalTimes.rend()); //reversing order since we delete from full filter first.
@@ -783,7 +664,7 @@ struct BenchmarkWrapper {
         std::vector<double> averageRandomQueryTimes(s.loadFactorTicks);
         std::vector<double> averageFalsePositiveRates(s.loadFactorTicks);
         std::vector<double> averageDeleteTimes(s.loadFactorTicks);
-        std::vector<double> averageSizes(s.loadFactorTicks); //again just in case, but def kinda pointless size really should be a constant as none of the filters do dynamic resizing
+        std::vector<double> averageSizes(s.loadFactorTicks);
 
         for(const auto& v: outputs) {
             try {
@@ -807,7 +688,6 @@ struct BenchmarkWrapper {
             }
         }
 
-        // std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"s));
         outputFolder /= std::to_string(s.N);
         outputFolder /= std::to_string(s.numReplicants);
         outputFolder /= std::to_string(s.numThreads);
@@ -836,8 +716,6 @@ struct BenchmarkWrapper {
     }
 };
 
-// struct RandomInsertDeleteWrapper {
-    // static constexpr std::string_view name = "RandomInsertDelete";
 struct InsertDeleteWrapper {
     static constexpr std::string_view name = "InsertDelete";
 
@@ -856,13 +734,10 @@ struct InsertDeleteWrapper {
         
         size_t filterSlots = s.N;
         size_t minN = static_cast<size_t>(filterSlots * minLoadFactor);
-        // std::cout << "minlf: " << minLoadFactor << " " << minN << std::endl;
         size_t maxN = static_cast<size_t>(filterSlots * maxLoadFactor);
         size_t maxInsDeleteKeys = static_cast<size_t>(filterSlots * maxInsertDeleteRatio);
 
-        // std::cout << "GOOOOO" << std::endl;
         std::vector<size_t> tickRanges = splitRange(minN, maxN, numTicks-1); //normally represents ranges, but here we represent exact values so that's why numTicks-1
-        // std::cout << "GOOOOO" << std::endl;
         std::vector<double> results;
         
         //Random test
@@ -930,21 +805,6 @@ struct InsertDeleteWrapper {
         }
     }
 };
-
-// struct StreamingInsertDeleteWrapper {
-//     static constexpr std::string_view name = "StreamingInsertDelete";
-
-//     template<typename FTWrapper>
-//     static std::vector<double> run(Settings s) {
-//         std::cout << name << std::endl;
-//         return std::vector<double>{};
-//     }
-
-//     template<typename FTWrapper>
-//     static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
-//         // std::cout << "Goooooooogoosu " << name << std::endl;
-//     }
-// };
 
 struct LoadFactorWrapper {
     static constexpr std::string_view name = "LoadFactor";
@@ -1017,15 +877,6 @@ struct TemplatedTester<FTTuple<FTWrappers...>, TestWrapperTuple<TestWrappers...>
     private:
         template<typename TestWrapper>
         static auto getRunFuncs() {
-            // // std::vector<std::string> FTNames{FTWrappers::name...};
-            // std::vector<std::pair<std::string, std::function<std::vector<double>(Settings)>>> s{{std::string{FTWrappers::name}, std::function<std::vector<double>(Settings)>{[](Settings s) -> std::vector<double>{return TestWrapper::template run<FTWrappers>(s);}}}...};
-            
-            // std::map<std::string, std::function<std::vector<double>(Settings)>> ans;
-            // for(auto [x, y]: s) {
-            //     ans[x] = y;
-            // }
-            // return ans;
-
             return std::map<std::string, std::function<std::vector<double>(Settings)>> {{std::string{FTWrappers::name}, std::function<std::vector<double>(Settings)>{[](Settings s) -> std::vector<double>{return TestWrapper::template run<FTWrappers>(s);}}}...};
         }
 
@@ -1035,12 +886,6 @@ struct TemplatedTester<FTTuple<FTWrappers...>, TestWrapperTuple<TestWrappers...>
                 {std::string{FTWrappers::name}, std::function<void(Settings, std::filesystem::path, std::vector<std::vector<double>>)>{[](Settings s, std::filesystem::path p, std::vector<std::vector<double>> d) {return TestWrapper::template analyze<FTWrappers>(s, p, d);}}}...
             };
         }
-
-        // template<typename TestWrapper>
-        // std::map<std::string, std::function<std::vector<double>(Settings)>> getAnalyzeFuncs() {
-        //     // std::vector<std::string> FTNames{FTWrappers::name...};
-        //     return std::map{{FTWrappers::name, [](Settings s) -> {return TestWrapper::run<FTWrappers>;}}...};
-        // }
 
         static auto getTestResults(const char* outputFilepath, std::set<std::string> keywords, std::multiset<Settings> testsToRun) {
             keywords.insert("TestResult");
@@ -1063,12 +908,9 @@ struct TemplatedTester<FTTuple<FTWrappers...>, TestWrapperTuple<TestWrappers...>
                 else if (keyword == "TestResult"s) { ///Potential minor issue---technically could print one testresult within replicants but not others, in which case we print extra testresults at the end (keeping this one and then doing it again)
                     if(testsToRun.count(curSetting) >= 1) {
                         replicantCounts[curSetting]++;
+                        testResults[curSetting].push_back(vals);
                         if(replicantCounts[curSetting] >= curSetting.numReplicants) {
-                            // std::cout << "Removing setting: " << std::endl;
-                            // std::cout << curSetting << std::endl;
                             testsToRun.extract(curSetting);
-                            testResults[curSetting].push_back(vals);
-                            // std::cout << "New testsToRunSize: " << testsToRun.size() << std::endl;
                             replicantCounts[curSetting] = 0;
                         }
                     }
@@ -1095,8 +937,6 @@ struct TemplatedTester<FTTuple<FTWrappers...>, TestWrapperTuple<TestWrappers...>
 
         auto config = readConfig(configFilepath, keywords);
 
-        // std::cout << "Read config!" << std::endl;
-
         std::multiset<Settings> testsToRun;
         {
         CompressedSettings curSettings;
@@ -1108,12 +948,10 @@ struct TemplatedTester<FTTuple<FTWrappers...>, TestWrapperTuple<TestWrappers...>
                 curSettings.setval(keyword, vals);
             }
             else if(FTNames.count(keyword) == 1){
-                // std::cout << "HI" << std::endl;
                 curSettings.FTName = keyword;
                 auto settingCombos = curSettings.getSettingsCombos();
                 for(auto setting: settingCombos) {
                     testsToRun.insert(setting);
-                    // std::cout << setting << std::endl;
                 }
             }
             else {
@@ -1122,10 +960,6 @@ struct TemplatedTester<FTTuple<FTWrappers...>, TestWrapperTuple<TestWrappers...>
             }
         }
         }
-
-        // std::cout << "testsToRun size: " << testsToRun.size() << std::endl;
-        
-        // auto testsCompleted = readConfig(outputFilepath, keywords);
 
         auto remainingTestsToRun = getTestResults(outputFilepath, keywords, testsToRun).second;
 

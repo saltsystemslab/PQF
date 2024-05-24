@@ -14,7 +14,7 @@ include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)
 
 set(DPF_FILES 
-    src/DynamicPrefixFilter.cpp src/TestUtility.cpp include/Bucket.hpp include/DynamicPrefixFilter.hpp
+    src/TestUtility.cpp include/Bucket.hpp include/PartitionQuotientFilter.hpp
     include/MiniFilter.hpp include/QRContainers.hpp include/RemainderStore.hpp)
 
 # set(VQF_Files test/vqf/include/vqf_filter.h test/vqf/include/vqf_precompute.h test/vqf/include/vqf_wrapper.h

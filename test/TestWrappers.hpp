@@ -29,34 +29,22 @@ class VQFWrapper {
             range = -1ull;
         }
 
-        bool insert(std::uint64_t hash) {
+        inline bool insert(std::uint64_t hash) {
             return vqf_insert(filter, hash);
-            // bool success = vqf_insert(filter, hash);
-            // insertFailure = !success;
-            // return success;
-            // if constexpr (DynamicPrefixFilter::DEBUG || DynamicPrefixFilter::PARTIAL_DEBUG) {
-            //     if (!vqf_insert(filter, hash)) {
-            //         fprintf(stderr, "Insertion failed");
-            //         exit(EXIT_FAILURE);
-            //     }
-            // }
-            // else {
-            //     vqf_insert(filter, hash);
-            // }
         }
 
-        bool query(std::uint64_t hash) {
+        inline bool query(std::uint64_t hash) {
             return vqf_is_present(filter, hash);
         }
 
-        std::uint64_t sizeFilter() {
+        inline std::uint64_t sizeFilter() {
             //Copied from vqf_filter.c
             uint64_t total_blocks = (nslots + QUQU_SLOTS_PER_BLOCK)/QUQU_SLOTS_PER_BLOCK;
             uint64_t total_size_in_bytes = sizeof(vqf_block) * total_blocks;
             return total_size_in_bytes;
         }
 
-        bool remove(std::uint64_t hash) {
+        inline bool remove(std::uint64_t hash) {
             return vqf_remove(filter, hash);
         }
 
@@ -151,7 +139,7 @@ class PFFilterAPIWrapper {
             range = -1ull;
         }
 
-        bool insert(std::uint64_t hash) {
+        inline bool insert(std::uint64_t hash) {
             FilterAPI<FilterType>::Add(hash, &filter);
             // bool success = FilterAPI<FilterType>::Add_attempt(hash, &filter); //DOES NOT EXIST IN Prefix_Filter!!!!!
             // insertFailure = !success;
@@ -159,11 +147,11 @@ class PFFilterAPIWrapper {
             return true;////terrible!
         }
 
-        bool query(std::uint64_t hash) {
+        inline bool query(std::uint64_t hash) {
             return FilterAPI<FilterType>::Contain(hash, &filter);
         }
 
-        std::uint64_t sizeFilter() {
+        inline std::uint64_t sizeFilter() {
             //Copied from wrappers.hpp and TC-Shortcut.hpp in Prefix-Filter
             //Size of frontyard
             // return SpaceCalculator(N);
@@ -171,7 +159,7 @@ class PFFilterAPIWrapper {
             return FilterAPI<FilterType>::get_byte_size(&filter);
         }
 
-        bool remove(std::uint64_t hash) {
+        inline bool remove(std::uint64_t hash) {
             if(CanRemove) {
                 FilterAPI<FilterType>::Remove(hash, &filter);
                 return true; //No indication here at all
@@ -196,7 +184,7 @@ class CuckooWrapper{
             range = -1ull;
         }
 
-        bool insert(std::uint64_t hash) {
+        inline bool insert(std::uint64_t hash) {
             ST status = filter.Add(hash);
             bool failure = status == cuckoofilter::NotEnoughSpace;
             // insertFailure = !FilterAPI<FilterType>::Add_attempt(hash, &filter);
@@ -204,16 +192,16 @@ class CuckooWrapper{
             return !failure;
         }
 
-        bool query(std::uint64_t hash) {
+        inline bool query(std::uint64_t hash) {
             ST status = filter.Contain(hash);
             return status == cuckoofilter::Ok;
         }
 
-        std::uint64_t sizeFilter() {
+        inline std::uint64_t sizeFilter() {
             return filter.SizeInBytes();
         }
 
-        bool remove(std::uint64_t hash) {
+        inline bool remove(std::uint64_t hash) {
             filter.Delete(hash);
             return true;
         }
@@ -233,33 +221,33 @@ class MortonWrapper{
             range = -1ull;
         }
 
-        bool insert(std::uint64_t hash) {
+        inline bool insert(std::uint64_t hash) {
             bool failure = filter.insert(hash);
             // insertFailure = failure;
             return failure;
         }
 
-        bool query(std::uint64_t hash) {
+        inline bool query(std::uint64_t hash) {
             return filter.likely_contains(hash);
         }
 
-        std::uint64_t sizeFilter() {
+        inline std::uint64_t sizeFilter() {
             return filter._total_blocks*sizeof(*(filter._storage)); //Not actually sure this is correct, as they have no getsize function. This seems to be the main storage hog?
         }
 
-        bool remove(std::uint64_t hash) {
+        inline bool remove(std::uint64_t hash) {
             return filter.delete_item(hash);
         }
 
-        void insertBatch(const std::vector<keys_t>& keys, std::vector<bool>& status, const uint64_t num_keys) {
+        inline void insertBatch(const std::vector<keys_t>& keys, std::vector<bool>& status, const uint64_t num_keys) {
             filter.insert_many(keys, status, num_keys);
         }
 
-        void queryBatch(const std::vector<keys_t>& keys, std::vector<bool>& status, const uint64_t num_keys) {
+        inline void queryBatch(const std::vector<keys_t>& keys, std::vector<bool>& status, const uint64_t num_keys) {
             filter.likely_contains_many(keys, status, num_keys);
         }
 
-        void removeBatch(const std::vector<keys_t>& keys, std::vector<bool>& status, const uint64_t num_keys) {
+        inline void removeBatch(const std::vector<keys_t>& keys, std::vector<bool>& status, const uint64_t num_keys) {
             filter.delete_many(keys, status, num_keys);
         }
 };

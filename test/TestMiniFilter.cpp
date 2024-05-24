@@ -7,7 +7,7 @@
 #include "TestUtility.hpp"
 
 using namespace std;
-using namespace DynamicPrefixFilter;
+using namespace PQF;
 
 template<size_t NumKeys, size_t NumMiniBuckets>
 struct alignas(1) FakeBucket {

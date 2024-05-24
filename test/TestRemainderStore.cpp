@@ -8,7 +8,7 @@
 #include "RemainderStore.hpp"
 
 using namespace std;
-using namespace DynamicPrefixFilter;
+using namespace PQF;
 
 template<size_t SizeRemainder, size_t NumKeys, template<size_t, std::size_t, std::size_t> class StoreType>
 struct alignas(64) FakeBucket {

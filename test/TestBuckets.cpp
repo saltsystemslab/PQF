@@ -9,7 +9,7 @@
 #include "Bucket.hpp"
 
 using namespace std;
-using namespace DynamicPrefixFilter;
+using namespace PQF;
 
 template<std::size_t NumKeys, std::size_t NumMiniBuckets, size_t SizeOfRemainderInBits, template<std::size_t, std::size_t> typename TypeOfRemainderStoreTemplate, template<std::size_t> typename TypeOfQRContainerTemplate>
 void testRealBucket(mt19937& generator) {

@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <immintrin.h>
 
-namespace DynamicPrefixFilter {
+namespace PQF {
     constexpr bool DEBUG = false;
     constexpr bool PARTIAL_DEBUG = false;
     constexpr bool NEW_HASH = false;

@@ -12,38 +12,28 @@
 #include <bit>
 #include "TestUtility.hpp"
 
-//Once get this working, turn this into more of an interface by not having this actually store the data?
-//Rather you pass pointers into the class, and it is a temporary class just to make dealing with stuff convenient
-//Cause having the class in charge of its own data seems somewhat inneficient cause you can't avoid initialization nonsense
-//But also it feels like the Bucket should be in charge of data handling, since it needs to know the sizes of stuff anyways to fit in a cache line
-//Can just have some constexpr static function in this class that tells you the size you need or smth
-//This would also enable the dynamicprefixfilter to have a resolution of individual bits rather than bytes in terms of space usage, although that's less of a concern
-
-
-//miniBucket separators are 1s and keys are 0s
-//Todo: add offset here so that can put this at the end rather than the beginning of the filter. That actually seems to be the *better* memory configuration!
-namespace DynamicPrefixFilter {
+namespace PQF {
     //You have to put the minifilter at the beginning of the bucket! Otherwise it may mess stuff up, since it does something admittedly kinda sus
     //Relies on little endian ordering
     //Definitely not fully optimized, esp given the fact that I'm being generic and allowing any mini filter size rather than basically mini filter has to fit in 2 words (ullongs)
     //TODO: Fix the organization of this (ex make some stuff public, some stuff private etc), and make an interface (this goes for all the things written so far).
     template<std::size_t NumKeys, std::size_t NumMiniBuckets, bool Threaded=false>
     struct alignas(1) MiniFilter {
-        static constexpr std::size_t NumBits = NumKeys+NumMiniBuckets;
-        static constexpr std::size_t NumBytes = (NumKeys+NumMiniBuckets+7)/8;
-        static constexpr std::size_t Size = NumBytes; // Again some naming consistency problems to address later
-        static constexpr std::size_t NumUllongs = (NumBytes+7)/8;
-        static constexpr std::uint64_t lastSegmentMask = (NumBits%64 == 0) ? -1ull : (1ull << (NumBits%64))-1ull;
-        static constexpr std::uint64_t lastBitMask = (NumBits%64 == 0) ? (1ull << 63) : (1ull << ((NumBits%64)-1));
+        inline static constexpr std::size_t NumBits = NumKeys+NumMiniBuckets;
+        inline static constexpr std::size_t NumBytes = (NumKeys+NumMiniBuckets+7)/8;
+        inline static constexpr std::size_t Size = NumBytes; // Again some naming consistency problems to address later
+        inline static constexpr std::size_t NumUllongs = (NumBytes+7)/8;
+        inline static constexpr std::uint64_t lastSegmentMask = (NumBits%64 == 0) ? -1ull : (1ull << (NumBits%64))-1ull;
+        inline static constexpr std::uint64_t lastBitMask = (NumBits%64 == 0) ? (1ull << 63) : (1ull << ((NumBits%64)-1));
         std::array<uint8_t, NumBytes> filterBytes;
 
         static_assert(NumKeys < 64 && NumBytes <= 16); //Not supporting more cause I don't need it
 
-        static constexpr std::size_t LockMask = 1ull << (NumBits%64);
-        static constexpr std::size_t UnlockMask = ~LockMask;
+        inline static constexpr std::size_t LockMask = 1ull << (NumBits%64);
+        inline static constexpr std::size_t UnlockMask = ~LockMask;
         static_assert(!Threaded || (NumBits < NumBytes*8)); //Making sure adding the bit doesn't make the filter bigger!
 
-        constexpr MiniFilter() {
+        inline constexpr MiniFilter() {
             int64_t numBitsNeedToSet = NumMiniBuckets;
             for(uint8_t& b: filterBytes) {
                 if(numBitsNeedToSet >= 8) {
@@ -70,58 +60,56 @@ namespace DynamicPrefixFilter {
             }
         }
 
-        void lock() {
+        inline void lock() {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes) + NumUllongs-1;
             if constexpr (!Threaded) return;
-            // std::cout << "trying to lock!" << std::endl;
             while ((__sync_fetch_and_or(fastCastFilter, LockMask) & LockMask) != 0);
-            // std::cout << "locked!" << std::endl;
         }
 
-        void assertLocked() {
+        inline void assertLocked() {
             if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
                 uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
                 assert(((*fastCastFilter) & LockMask) != 0);
             }
         }
 
-        void assertUnlocked() {
+        inline void assertUnlocked() {
             if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
                 uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
                 assert(((*fastCastFilter) & LockMask) == 0);
             }
         }
 
-        void unlock() {
+        inline void unlock() {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes) + NumUllongs-1;
             if constexpr (!Threaded) return;
             __sync_fetch_and_and(fastCastFilter, UnlockMask);
         }
 
-        bool full() const {
+        inline bool full() const {
             const uint64_t* fastCastFilter = reinterpret_cast<const uint64_t*> (&filterBytes);
             return *(fastCastFilter + NumUllongs - 1) & lastBitMask; //If the last element is a miniBucket separator, we know we are full! Otherwise, there are keys "waiting" to be allocated to a mini bucket.
         }
 
-        std::size_t select(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
+        inline std::size_t select(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
             uint64_t isolateBit = _pdep_u64(1ull << miniBucketSegmentIndex, filterSegment);
             // std::cout << miniBucketSegmentIndex << " " << isolateBit << std::endl;
             return __builtin_ctzll(isolateBit);
         }
 
-        std::size_t getKeyIndex(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
+        inline std::size_t getKeyIndex(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
             return select(filterSegment, miniBucketSegmentIndex) - miniBucketSegmentIndex;
         }
 
-        std::size_t selectNoCtzll(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
+        inline std::size_t selectNoCtzll(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
             return _pdep_u64(1ull << miniBucketSegmentIndex, filterSegment);
         }
 
-        std::size_t getKeyMask(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
+        inline std::size_t getKeyMask(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) const {
             return selectNoCtzll(filterSegment, miniBucketSegmentIndex) >> miniBucketSegmentIndex;
         }
 
-        std::pair<std::uint64_t, std::uint64_t> queryMiniBucketBoundsMask(std::size_t miniBucketIndex) {
+        inline std::pair<std::uint64_t, std::uint64_t> queryMiniBucketBoundsMask(std::size_t miniBucketIndex) {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
             if constexpr (NumBytes <= 8) {
                 if(miniBucketIndex == 0) {
@@ -149,7 +137,7 @@ namespace DynamicPrefixFilter {
         }
 
         //Returns a pair representing [start, end) of the minibucket. So basically miniBucketIndex to keyIndex conversion
-        std::pair<std::size_t, std::size_t> queryMiniBucketBounds(std::size_t miniBucketIndex) {
+        inline std::pair<std::size_t, std::size_t> queryMiniBucketBounds(std::size_t miniBucketIndex) {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
             if constexpr (NumBytes <= 8) {
                 if(miniBucketIndex == 0) {
@@ -177,7 +165,7 @@ namespace DynamicPrefixFilter {
         }
 
         //Tells you which mini bucket a key belongs to. Really works same as queryMniBucketBeginning but just does bit inverse of fastCastFilter. Returns a number larger than the number of miniBuckets if keyIndex is nonexistent (should be--test this)
-        std::size_t queryWhichMiniBucket(std::size_t keyIndex) const {
+        inline std::size_t queryWhichMiniBucket(std::size_t keyIndex) const {
             const uint64_t* fastCastFilter = reinterpret_cast<const uint64_t*> (&filterBytes);
             if constexpr (NumBytes <= 8) {
                 return getKeyIndex(~(*fastCastFilter), keyIndex);
@@ -196,7 +184,7 @@ namespace DynamicPrefixFilter {
             }
         }
 
-        std::size_t queryMiniBucketBeginning(std::size_t miniBucketIndex) {
+        inline std::size_t queryMiniBucketBeginning(std::size_t miniBucketIndex) {
             //Highly, sus, but whatever
             if(miniBucketIndex == 0) {
                 return 0;
@@ -217,7 +205,7 @@ namespace DynamicPrefixFilter {
         }
 
         //really just a "__m128i" version of ~((1ull << loc) - 1) or like -(1ull << loc)
-        static constexpr __m128i getShiftMask(std::size_t loc) {
+        inline static constexpr __m128i getShiftMask(std::size_t loc) {
             std::array<std::uint64_t, 2> ulongs;
             for(size_t i=0; i < 2; i++, loc-=64) {
                 if(loc >= 128) ulongs[i] = -1ull; //wrapped around so we want to set everything to zero
@@ -232,7 +220,7 @@ namespace DynamicPrefixFilter {
             return std::bit_cast<__m128i>(ulongs);
         }
 
-        static constexpr std::array<m128iWrapper, 128> getShiftMasks() {
+        inline static constexpr std::array<m128iWrapper, 128> getShiftMasks() {
             std::array<m128iWrapper, 128> masks;
             for(size_t i = 0; i < 128; i++) {
                 masks[i] = getShiftMask(i);
@@ -242,7 +230,7 @@ namespace DynamicPrefixFilter {
 
         static constexpr std::array<m128iWrapper, 128> ShiftMasks = getShiftMasks();
 
-        static constexpr __m128i getZeroMask(std::size_t loc) {
+        inline static constexpr __m128i getZeroMask(std::size_t loc) {
             std::array<std::uint64_t, 2> ulongs;
             for(size_t i=0; i < 2; i++, loc-=64) {
                 if(loc >= 64) ulongs[i] = -1ull; //funny that this works even when loc "wraps around" and becomes massive cause its unsigned
@@ -253,7 +241,7 @@ namespace DynamicPrefixFilter {
             return std::bit_cast<__m128i>(ulongs);
         }
 
-        static constexpr std::array<m128iWrapper, 128> getZeroMasks() {
+        inline static constexpr std::array<m128iWrapper, 128> getZeroMasks() {
             std::array<m128iWrapper, 128> masks;
             for(size_t i = 0; i < 128; i++) {
                 masks[i] = getZeroMask(i);
@@ -265,7 +253,7 @@ namespace DynamicPrefixFilter {
 
         //Vectorize as in the 4 bit remainder store? Probably not needed for if fits in 64 bits, so have a constexpr there.
         //Probably not the most efficient implementation, but this one is at least somewhatish straightforward. Still not great and maybe not even correct
-        bool shiftFilterBits(std::size_t in) {
+        inline bool shiftFilterBits(std::size_t in) {
             int64_t index = in;
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
             std::size_t endIndex = NumBits;
@@ -308,7 +296,7 @@ namespace DynamicPrefixFilter {
 
         //TODO: specialize it for just up to two ullongs to simplify the code (& possibly small speedup but probably not)
         //Keys are zeros, so "fix overflow" basically makes it so  that we overflow the key, not the mini bucket. We essentially aim to replace the last zero with a one
-        uint64_t fixOverflow() {
+        inline uint64_t fixOverflow() {
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
             uint64_t lastSegmentInverse = (~(*fastCastFilter)) & lastSegmentMask;
             uint64_t offsetMiniBuckets = NumBits-(NumUllongs-1)*64; //Again bad name. We want to return the mini bucket index, and to do that we are counting how many mini buckets from the end we have. Originally had this be popcount, but we don't need popcount, since we only continue if everything is ones basically!
@@ -333,7 +321,7 @@ namespace DynamicPrefixFilter {
         
         //Returns true if the filter was full and had to kick somebody to make room.
         //Since we assume that keyIndex was obtained with a query or is at least valid, we have an implicit assertion that keyIndex <= NumKeys (so can essentially be the key bigger than all the other keys in the filter & it becomes the overflow)
-        std::uint64_t insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
+        inline std::uint64_t insert(std::size_t miniBucketIndex, std::size_t keyIndex) {
             size_t x;
             if constexpr (DEBUG) {
                 x = countKeys();
@@ -350,7 +338,7 @@ namespace DynamicPrefixFilter {
             return -1ull;
         }
 
-        void remove(std::size_t miniBucketIndex, std::size_t keyIndex) {
+        inline void remove(std::size_t miniBucketIndex, std::size_t keyIndex) {
             std::size_t index = miniBucketIndex + keyIndex;
             if constexpr (NumBytes <= 8){
                 uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
@@ -372,7 +360,7 @@ namespace DynamicPrefixFilter {
 
         //Maybe remove the for loop & specialize it for <= 2 ullongs
         //We implement this by counting where the last bucket cutoff is, and then the number of keys is just that minus the number of buckets. So p similar to fixOverflow()
-        std::size_t countKeys() {
+        inline std::size_t countKeys() {
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
             uint64_t segment = (*fastCastFilter) & lastSegmentMask;
             size_t offset = (NumUllongs-1) * 64;
@@ -387,7 +375,7 @@ namespace DynamicPrefixFilter {
         }
 
         //Tells you if a mini bucket is at the very "end" of a filter. Basically, the point is to tell you if you need to go to the backyard.
-        bool miniBucketOutofFilterBounds(std::size_t miniBucket) {
+        inline bool miniBucketOutofFilterBounds(std::size_t miniBucket) {
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes));
             if constexpr (NumBytes <= 8) {
                 // std::size_t previousElementsMask = (~(((1ull<<NumKeys) << miniBucket) - 1)) & lastSegmentMask; //Basically, we want to see if there is a zero (meaning a key) after where the bucket should be if it is after all the keys
@@ -409,7 +397,7 @@ namespace DynamicPrefixFilter {
             return true;
         }
 
-        std::size_t checkMiniBucketKeyPair(std::size_t miniBucket, std::size_t keyBit) {
+        inline std::size_t checkMiniBucketKeyPair(std::size_t miniBucket, std::size_t keyBit) {
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes));
             if constexpr (NumBytes <= 8) {
                 std::size_t keyBucketLoc = keyBit << miniBucket;
@@ -430,7 +418,7 @@ namespace DynamicPrefixFilter {
 
 
         //Functions for testing below***************************************************************************
-        static void printMiniFilter(std::array<uint8_t, NumBytes> filterBytes, bool withExtraBytes = false) {
+        inline static void printMiniFilter(std::array<uint8_t, NumBytes> filterBytes, bool withExtraBytes = false) {
             int64_t bitsLeftInFilter = withExtraBytes ? NumUllongs*64 : NumBits;
             for(std::size_t i{0}; i < NumBytes; i++) {
                 uint8_t byte = filterBytes[i];
@@ -441,7 +429,7 @@ namespace DynamicPrefixFilter {
             }
         }
 
-        std::optional<uint64_t> testInsert(std::size_t miniBucketIndex, std::size_t keyIndex) {
+        inline std::optional<uint64_t> testInsert(std::size_t miniBucketIndex, std::size_t keyIndex) {
             // std::cout << "Trying to insert " << miniBucketIndex << " " << keyIndex << std::endl;
             // printMiniFilter(filterBytes, true);
             // std::cout << std::endl;

@@ -5,9 +5,9 @@
 #include <optional>
 #include <chrono>
 
-#include "DynamicPrefixFilter.hpp"
+#include "PartitionQuotientFilter.hpp"
 
-using namespace DynamicPrefixFilter;
+using namespace PQF;
 using namespace std;
 
 template<typename FT>

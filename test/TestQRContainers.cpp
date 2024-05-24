@@ -4,7 +4,7 @@
 #include "QRContainers.hpp"
 
 using namespace std;
-using namespace DynamicPrefixFilter;
+using namespace PQF;
 
 template<std::size_t NumMiniBuckets, bool HashNum, size_t ConsolidationFactor>
 void testQRContainers (mt19937& generator){

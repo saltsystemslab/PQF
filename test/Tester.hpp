@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 #include <random>
-#include "DynamicPrefixFilter.hpp"
+#include "PartitionQuotientFilter.hpp"
 #include "TestWrappers.hpp"
 
 double runTest(function<void(void)> t);
@@ -53,33 +53,33 @@ struct PQF_Wrapper_SingleT {
 
 
 static const char PQF_8_22_Wrapper_str[] = "PQF_8_22";
-using PQF_8_22_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_22, PQF_8_22_Wrapper_str>;
+using PQF_8_22_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22, PQF_8_22_Wrapper_str>;
 static const char PQF_8_22_FRQ_Wrapper_str[] = "PQF_8_22_FRQ";
-using PQF_8_22_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_22_FRQ, PQF_8_22_FRQ_Wrapper_str>;
+using PQF_8_22_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22_FRQ, PQF_8_22_FRQ_Wrapper_str>;
 static const char PQF_8_22BB_Wrapper_str[] = "PQF_8_22BB";
-using PQF_8_22BB_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_22BB, PQF_8_22BB_Wrapper_str>;
+using PQF_8_22BB_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22BB, PQF_8_22BB_Wrapper_str>;
 static const char PQF_8_22BB_FRQ_Wrapper_str[] = "PQF_8_22BB_FRQ";
-using PQF_8_22BB_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_22BB_FRQ, PQF_8_22BB_FRQ_Wrapper_str>;
+using PQF_8_22BB_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22BB_FRQ, PQF_8_22BB_FRQ_Wrapper_str>;
 
 static const char PQF_8_31_Wrapper_str[] = "PQF_8_31";
-using PQF_8_31_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_31, PQF_8_31_Wrapper_str>;
+using PQF_8_31_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_31, PQF_8_31_Wrapper_str>;
 static const char PQF_8_31_FRQ_Wrapper_str[] = "PQF_8_31_FRQ";
-using PQF_8_31_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_31_FRQ, PQF_8_31_FRQ_Wrapper_str>;
+using PQF_8_31_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_31_FRQ, PQF_8_31_FRQ_Wrapper_str>;
 
 static const char PQF_8_62_Wrapper_str[] = "PQF_8_62";
-using PQF_8_62_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_62, PQF_8_62_Wrapper_str>;
+using PQF_8_62_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_62, PQF_8_62_Wrapper_str>;
 static const char PQF_8_62_FRQ_Wrapper_str[] = "PQF_8_62_FRQ";
-using PQF_8_62_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_62_FRQ, PQF_8_62_FRQ_Wrapper_str>;
+using PQF_8_62_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_62_FRQ, PQF_8_62_FRQ_Wrapper_str>;
 
 static const char PQF_8_53_Wrapper_str[] = "PQF_8_53";
-using PQF_8_53_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_53, PQF_8_53_Wrapper_str>;
+using PQF_8_53_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_53, PQF_8_53_Wrapper_str>;
 static const char PQF_8_53_FRQ_Wrapper_str[] = "PQF_8_53_FRQ";
-using PQF_8_53_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_8_53_FRQ, PQF_8_53_FRQ_Wrapper_str>;
+using PQF_8_53_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_53_FRQ, PQF_8_53_FRQ_Wrapper_str>;
 
 static const char PQF_16_36_Wrapper_str[] = "PQF_16_36";
-using PQF_16_36_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_16_36, PQF_16_36_Wrapper_str>;
+using PQF_16_36_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_16_36, PQF_16_36_Wrapper_str>;
 static const char PQF_16_36_FRQ_Wrapper_str[] = "PQF_16_36_FRQ";
-using PQF_16_36_FRQ_Wrapper = PQF_Wrapper_SingleT<DynamicPrefixFilter::PQF_16_36_FRQ, PQF_16_36_FRQ_Wrapper_str>;
+using PQF_16_36_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_16_36_FRQ, PQF_16_36_FRQ_Wrapper_str>;
 
 
 template<typename FT, const char* n>
@@ -93,19 +93,19 @@ struct PQF_Wrapper_MultiT {
 };
 
 static const char PQF_8_21_T_Wrapper_str[] = "PQF_8_21_T";
-using PQF_8_21_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_8_21_T, PQF_8_21_T_Wrapper_str>;
+using PQF_8_21_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_21_T, PQF_8_21_T_Wrapper_str>;
 static const char PQF_8_21_FRQ_T_Wrapper_str[] = "PQF_8_21_FRQ_T";
-using PQF_8_21_FRQ_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_8_21_FRQ_T, PQF_8_21_FRQ_T_Wrapper_str>;
+using PQF_8_21_FRQ_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_21_FRQ_T, PQF_8_21_FRQ_T_Wrapper_str>;
 
 static const char PQF_8_52_T_Wrapper_str[] = "PQF_8_52_T";
-using PQF_8_52_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_8_52_T, PQF_8_52_T_Wrapper_str>;
+using PQF_8_52_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_52_T, PQF_8_52_T_Wrapper_str>;
 static const char PQF_8_52_FRQ_T_Wrapper_str[] = "PQF_8_52_FRQ_T";
-using PQF_8_52_FRQ_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_8_52_FRQ_T, PQF_8_52_FRQ_T_Wrapper_str>;
+using PQF_8_52_FRQ_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_52_FRQ_T, PQF_8_52_FRQ_T_Wrapper_str>;
 
 static const char PQF_16_35_T_Wrapper_str[] = "PQF_16_35_T";
-using PQF_16_35_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_16_35_T, PQF_16_35_T_Wrapper_str>;
+using PQF_16_35_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_16_35_T, PQF_16_35_T_Wrapper_str>;
 static const char PQF_16_35_FRQ_T_Wrapper_str[] = "PQF_16_35_FRQ_T";
-using PQF_16_35_FRQ_T_Wrapper = PQF_Wrapper_MultiT<DynamicPrefixFilter::PQF_16_35_FRQ_T, PQF_16_35_FRQ_T_Wrapper_str>;
+using PQF_16_35_FRQ_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_16_35_FRQ_T, PQF_16_35_FRQ_T_Wrapper_str>;
 
 
 //PF Types
