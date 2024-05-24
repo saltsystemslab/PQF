@@ -1,4 +1,4 @@
-# Dynamic-Prefix-Filter
+# Partition Quotient Filter
 
 ## How to Run
 Make sure to clone the submodules: git submodule update --init
