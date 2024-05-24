@@ -178,7 +178,6 @@ namespace PQF {
                 }
                 else {
                     invFilterSegment = ~(*(fastCastFilter+1));
-                    // std::cout << "Hello" << std::endl;
                     return getKeyIndex(invFilterSegment, keyIndex-segmentKeyCount) + 64 - segmentKeyCount;
                 }
             }
@@ -378,12 +377,8 @@ namespace PQF {
         inline bool miniBucketOutofFilterBounds(std::size_t miniBucket) {
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes));
             if constexpr (NumBytes <= 8) {
-                // std::size_t previousElementsMask = (~(((1ull<<NumKeys) << miniBucket) - 1)) & lastSegmentMask; //Basically, we want to see if there is a zero (meaning a key) after where the bucket should be if it is after all the keys
-                // return ((*fastCastFilter) & lastSegmentMask) >= previousElementsMask; //Works since each miniBucket is a one, so we test if t
                 std::size_t previousElementsMask = ((((-1ull)<<NumKeys) << miniBucket)) & lastSegmentMask;
                 return ((*fastCastFilter) & lastSegmentMask) >= previousElementsMask;
-
-                // 01000111. 00000100 -> 00000111 -> 01000111 >= 00000111
             }
             else if (NumBytes <= 16) {
                 if (NumKeys + miniBucket >= 64) {
@@ -405,13 +400,9 @@ namespace PQF {
                 if (pcnt == miniBucket && (keyBucketLoc & (*fastCastFilter)) == 0) {
                     return 1;
                 }
-                // else if (miniBucketOutofFilterBounds(miniBucket)){
-                //     return 2;
-                // }
                 else {
                     return 0;
                 }
-                // else return 0;
             }
             return 0; //should not get here
         }
@@ -430,13 +421,9 @@ namespace PQF {
         }
 
         inline std::optional<uint64_t> testInsert(std::size_t miniBucketIndex, std::size_t keyIndex) {
-            // std::cout << "Trying to insert " << miniBucketIndex << " " << keyIndex << std::endl;
-            // printMiniFilter(filterBytes, true);
-            // std::cout << std::endl;
             std::array<uint8_t, NumBytes> expectedFilterBytes;
             bool expectedOverflowBit = 0;
             std::optional<uint64_t> expectedOverflow = {};
-            // bool startedShifting = false;
             int64_t bitsNeedToSet = miniBucketIndex+keyIndex;
             int64_t bitsLeftInFilter = NumBits;
             size_t lastZeroPos = -1;
@@ -470,17 +457,9 @@ namespace PQF {
                 *byteToChange |= 1 << lastZeroPos;
             }
             std::uint64_t overflow = insert(miniBucketIndex, keyIndex);
-            // std::cout << std::endl;
-            // printMiniFilter(filterBytes);
-            // std::cout << std::endl;
-            // std::cout << std::endl;
-            // printMiniFilter(expectedFilterBytes, true);
-            // std::cout << std::endl;
-            // std::cout << overflow << " " << *expectedOverflow << std::endl;
             assert(expectedFilterBytes == filterBytes);
             assert((overflow != -1ull) == expectedOverflow.has_value());
             if((overflow != -1ull)) {
-                // std::cout << (*overflow) << " " << (*expectedOverflow) << std::endl;
                 assert(overflow == *expectedOverflow);
             }
             return overflow;
