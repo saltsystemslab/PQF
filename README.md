@@ -44,7 +44,7 @@ make &&
 ### Potential Compilation Issue
 One of the Prefix Filter files has a problem, but for some reason older versions of g++ do not catch this. When I use g++-12, it complains along the lines of:
 
-Dynamic-Prefix-Filter/test/Prefix-Filter/Prefix-Filter/Shift_op.cpp:895:57: error: ‘vector’ in namespace ‘std’ does not name a template type
+test/Prefix-Filter/Prefix-Filter/Shift_op.cpp:895:57: error: ‘vector’ in namespace ‘std’ does not name a template type
   895 |     void memcpy_for_vec(uint8_t *pack_array, const std::vector<bool> *b_vec) {
 
 To fix this, basically just add "include &lt;vector&gt;;" to top of the Shift_op.cpp file in test/Prefix-Filter/Prefix-Filter
