@@ -1036,7 +1036,7 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         TC_Wrapper, CFF12_Wrapper, BBFF_Wrapper, 
         OriginalCF12_Wrapper, OriginalCF16_Wrapper,
         Morton3_12_Wrapper, Morton3_18_Wrapper,
-        VQF_Wrapper, VQFT_Wrapper>;
+        VQF_Wrapper, VQFT_Wrapper, BBFWrapper>;
 
 using TestWrapperTuple = std::tuple<BenchmarkWrapper, 
 MultithreadedWrapper, 

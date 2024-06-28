@@ -227,4 +227,13 @@ struct VQFT_Wrapper {
     static constexpr bool canDelete = true;
 };
 
+struct BBF_Wrapper {
+    using type = BBFWrapper;
+    static constexpr std::string_view name = "BBFT";
+    static constexpr bool threaded = false;
+    static constexpr bool onlyInsertsThreaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = false;
+};
+
 #endif
