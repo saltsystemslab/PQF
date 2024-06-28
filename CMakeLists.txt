@@ -1,12 +1,15 @@
 cmake_minimum_required(VERSION 3.10)
 
+set(CMAKE_C_COMPILER /usr/bin/gcc-11)
+set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
 project(BenchFilter)
 
 find_package(OpenSSL REQUIRED)
 
+set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_FLAGS "-march=native -pthread")
+set(CMAKE_CXX_FLAGS "-march=native -pthread -std=c++2a")
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)
@@ -63,6 +66,6 @@ else()
     message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
 
-target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
+target_compile_options(Tester PRIVATE -pg -Wall -std=c++2a)
 target_link_libraries(Tester PRIVATE vqf)
 target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
