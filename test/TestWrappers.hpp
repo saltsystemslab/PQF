@@ -59,31 +59,26 @@ public:
 //! This code was "taken" from Prefix-Filter/main-built.cpp
 class BBFWrapper {
     size_t n_bits;
-    SimdBlockFilter<> *filter;
+    SimdBlockFilterFixed<> filter;
 
 public:
-    BBFWrapper(size_t n_slots) : n_bits(n_slots), bucket_count(::std::max(1, n_slots / 10)), directory_(nullptr),
-                                 hasher_() {
-       if ((filter = SimdBlockFilterFixed(n_bits)) == NULL) {
-           fprintf(stderr, "Failed to create blocked bloom filter");
-           exit(EXIT_FAILURE);
-       }
+    BBFWrapper(size_t n_slots) : n_bits(n_slots), filter(SimdBlockFilterFixed(n_slots)) {
     }
 
     ~BBFWrapper() {
-        free(filter);
     }
 
     inline bool insert(std::uint64_t hash) {
-        return Add(hash);
+        filter.Add(hash);
+	return true;
     }
 
     inline bool query(std::uint64_t hash) {
-        return Find(hash);
+        return filter.Find(hash);
     }
 
     inline std::uint64_t sizeFilter() {
-        return bucket_count * sizeof(Bucket);
+        return filter.SizeInBytes();
     }
 };
 
