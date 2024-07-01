@@ -487,6 +487,9 @@ struct MultithreadedWrapper {
         std::vector<size_t> keys = generateKeys<FT>(filter, N);
         auto threadRanges = splitRange(0, N, numThreads);
         size_t *threadResults = new size_t[numThreads];
+        std::vector<double> results;
+        results.push_back(true);
+        results.push_back(true);
 
         double insertTime = runTest([&]() {
             std::vector<std::thread> threads;
@@ -508,16 +511,17 @@ struct MultithreadedWrapper {
         }
 
 
-        std::vector<std::thread> threads;
-        for(size_t i = 0; i < numThreads; i++) {
-            threads.push_back(std::thread([&, i] {
-                threadResults[i] = checkQuery<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
-            }));
-        }
-        for(auto& th: threads) {
-            th.join();
-        }
-
+        double queryTime = runTest([&]() {
+            std::vector<std::thread> threads;
+            for(size_t i = 0; i < numThreads; i++) {
+                threads.push_back(std::thread([&, i] {
+                    threadResults[i] = checkQuery<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
+                }));
+            }
+            for(auto& th: threads) {
+                th.join();
+            }
+        });
         for(size_t i=0; i < numThreads; i++) {
             if(!threadResults[i]) {
                 std::cerr << "FAILED" << std::endl;
@@ -526,8 +530,9 @@ struct MultithreadedWrapper {
         }
 
         delete threadResults;
-
-        return std::vector<double>{insertTime};
+        results.push_back(insertTime);
+        results.push_back(queryTime);
+        return results;
     }
 
     template<typename FTWrapper>
@@ -1036,7 +1041,7 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         TC_Wrapper, CFF12_Wrapper, BBFF_Wrapper, 
         OriginalCF12_Wrapper, OriginalCF16_Wrapper,
         Morton3_12_Wrapper, Morton3_18_Wrapper,
-        VQF_Wrapper, VQFT_Wrapper, BBFWrapper>;
+        VQF_Wrapper, VQFT_Wrapper, BBF_Wrapper>;
 
 using TestWrapperTuple = std::tuple<BenchmarkWrapper, 
 MultithreadedWrapper, 

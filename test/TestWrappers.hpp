@@ -62,7 +62,9 @@ class BBFWrapper {
     SimdBlockFilterFixed<> filter;
 
 public:
+    size_t range;
     BBFWrapper(size_t n_slots) : n_bits(n_slots), filter(SimdBlockFilterFixed(n_slots)) {
+        range = -1ull;
     }
 
     ~BBFWrapper() {
@@ -79,6 +81,10 @@ public:
 
     inline std::uint64_t sizeFilter() {
         return filter.SizeInBytes();
+    }
+
+    inline bool remove(std::uint64_t hash) {
+        return true;
     }
 };
 
