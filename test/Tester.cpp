@@ -505,7 +505,7 @@ struct MultithreadedWrapper {
 
         for(size_t i=0; i < numThreads; i++) {
             if(!threadResults[i]) {
-                std::cerr << "FAILED" << std::endl;
+                std::cerr << "INSERT FAILED" << std::endl;
                 return std::vector<double>{std::numeric_limits<double>::max()};
             }
         }
@@ -524,7 +524,7 @@ struct MultithreadedWrapper {
         });
         for(size_t i=0; i < numThreads; i++) {
             if(!threadResults[i]) {
-                std::cerr << "FAILED" << std::endl;
+                std::cerr << "QUERY FAILED" << std::endl;
                 return std::vector<double>{std::numeric_limits<double>::max()};
             }
         }
@@ -783,11 +783,11 @@ struct MixedWorkloadBenchmarkWrapper {
         for (uint64_t i = 0; i < num_iter; i++) {
             oprs[i] = rand() % 3;
             if (oprs[i] == 0) { // delete
-                opr_vals[i] = keys[rand() % N];
+                opr_vals[i] = keys[rand() % keys.size()];
             } else if (oprs[i] == 1) { // query
-                opr_vals[i] = keys[rand() % N];
+                opr_vals[i] = keys[rand() % keys.size()];
             } else if (oprs[i] == 2) { // insert
-                opr_vals[i] = other_keys[rand() % N];
+                opr_vals[i] = other_keys[rand() % other_keys.size()];
             }
         }
 
@@ -796,17 +796,9 @@ struct MixedWorkloadBenchmarkWrapper {
                 if (oprs[i] == 0) { // delete
                     if constexpr (FTWrapper::canDelete) {
                         ret = filter.remove(opr_vals[i]);
-                        if (!ret) {
-                            std::cerr << "Delete failed!" << std::endl;
-                            break;
-                        }
                     }
                 } else if (oprs[i] == 1) { // query
                     ret = filter.query(opr_vals[i]);
-                    if (!ret) {
-                        std::cerr << "Query failed!" << std::endl;
-                        break;
-                    }
                 } else if (oprs[i] == 2) { // insert
                     if (!filter.insert(opr_vals[i])) {
                         std::cerr << "Insert failed!" << std::endl;
@@ -833,6 +825,7 @@ struct MixedWorkloadBenchmarkWrapper {
         double maxLoadFactor = *(s.maxLoadFactor);
         size_t maxLoadFactorPct = std::llround(maxLoadFactor * 100);
         outputFolder /= std::to_string(maxLoadFactorPct);
+	std::filesystem::create_directories(outputFolder);
         std::ofstream fmixed(outputFolder / (std::to_string(s.N) + "-mixed.txt"), std::ios_base::app);
         fmixed << s.numThreads << " " << averageWorkloadTimes << " " << (effectiveN / averageWorkloadTimes) << std::endl;
     }
