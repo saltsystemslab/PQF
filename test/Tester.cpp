@@ -539,13 +539,9 @@ struct MultithreadedWrapper {
     static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
         double averageInsertTimes;
         double averageQueryTimes;
-        if(v.size() < 3 || (!v[0]) || (!v[1])) {
-            std::cerr << "A benchmark of " << FTWrapper::name << " failed!!!" << std::endl;
-            return;
-        }
 
         for (const auto &v: outputs) {
-            size_t i = 3;
+            size_t i = 2;
             averageInsertTimes += v.at(i) / outputs.size();
             averageQueryTimes += v.at(i + 1) / outputs.size();
         }
