@@ -821,12 +821,20 @@ struct MixedWorkloadBenchmarkWrapper {
 
     template<typename FTWrapper>
     static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
-        outputFolder /= std::to_string(s.N);
-        outputFolder /= std::to_string(s.numReplicants);
-        outputFolder /= std::to_string(s.numThreads);
-        std::filesystem::create_directories(outputFolder);
-        std::ofstream fmixed(outputFolder / "mixed.txt");
-
+        double effectiveN = s.N * s.maxLoadFactor.value();
+        double averageWorkloadTimes;
+        for(auto v: outputs) {
+            averageWorkloadTimes += v[0] / outputs.size();
+        }
+        if(!s.maxLoadFactor) {
+            std::cerr << "Missing max load factor" << std::endl;
+            return;
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+        size_t maxLoadFactorPct = std::llround(maxLoadFactor * 100);
+        outputFolder /= std::to_string(maxLoadFactorPct);
+        std::ofstream fmixed(outputFolder / (std::to_string(s.N) + "-mixed.txt"), std::ios_base::app);
+        fmixed << s.numThreads << " " << averageWorkloadTimes << " " << (effectiveN / averageWorkloadTimes) << std::endl;
     }
 };
 
