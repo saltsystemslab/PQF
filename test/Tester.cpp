@@ -537,9 +537,20 @@ struct MultithreadedWrapper {
 
     template<typename FTWrapper>
     static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
-        double avgInsTime = 0;
-        for(auto v: outputs) {
-            avgInsTime += v[0] / outputs.size();
+        double averageInsertTimes;
+        double averageQueryTimes;
+
+        for (const auto &v: outputs) {
+            try {
+                size_t i = 3;
+                for (size_t j = 0; j < s.loadFactorTicks; j++) {
+                    averageInsertTimes += v.at(i) / outputs.size();
+                    averageQueryTimes += v.at(i + 1) / outputs.size();
+                }
+            } catch (std::out_of_range const& exc) {
+                std::cerr << "Some problematic output of " << FTWrapper::name << "; " << exc.what() << std::endl;
+                return;
+            }
         }
 
         double effectiveN = s.N * s.maxLoadFactor.value();
@@ -551,8 +562,10 @@ struct MultithreadedWrapper {
         size_t maxLoadFactorPct = std::llround(maxLoadFactor * 100);
         outputFolder /= std::to_string(maxLoadFactorPct);
         std::filesystem::create_directories(outputFolder);
-        std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
-        fout << s.numThreads << " " << avgInsTime << " " << (effectiveN / avgInsTime) << std::endl;
+        std::ofstream finsert(outputFolder / (std::to_string(s.N) + "-insert.txt"), std::ios_base::app);
+        std::ofstream fquery(outputFolder / (std::to_string(s.N) + "-query.txt"), std::ios_base::app);
+        finsert << s.numThreads << " " << averageInsertTimes << " " << (effectiveN / averageInsertTimes) << std::endl;
+        fquery << s.numThreads << " " << averageQueryTimes << " " << (effectiveN / averageQueryTimes) << std::endl;
     }
 };
 
