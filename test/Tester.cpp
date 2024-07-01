@@ -727,6 +727,108 @@ struct BenchmarkWrapper {
     }
 };
 
+struct MixedWorkloadBenchmarkWrapper {
+    static constexpr std::string_view name = "MixedWorkloadBenchmark";
+
+    template<typename FTWrapper>
+    static std::vector<double> run(Settings s) {
+        //! Get the number of threads
+        size_t numThreads = s.numThreads;
+        if(numThreads == 0) {
+            std::cerr << "Cannot have 0 threads!!" << std::endl;
+            return {};
+        }
+        if(numThreads > 1 && !FTWrapper::threaded) {
+            std::cerr << "Cannot test multiple threads when the filter does not support it!" << std::endl;
+            return {};
+        }
+        size_t numTicks = s.loadFactorTicks;
+        if(!s.maxLoadFactor) {
+            std::cerr << "Does not have a max load factor!" << std::endl;
+            return std::vector<double>{};
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+
+        using FT = typename FTWrapper::type;
+        size_t filterSlots = s.N;
+        size_t num_iter = 1000000;
+        size_t N = static_cast<size_t>(s.N * maxLoadFactor);
+        FT filter(filterSlots);
+        std::vector<size_t> tickRanges = splitRange(0, N, numTicks);
+        std::vector<size_t> keys = generateKeys<FT>(filter, N);
+        std::vector<size_t> other_keys = generateKeys<FT>(filter, N);
+        std::vector<double> results;
+        size_t *threadResults = new size_t[numThreads];
+        uint8_t *oprs = (uint8_t *)malloc(num_iter*sizeof(uint8_t));
+        uint64_t *opr_vals = (uint64_t *)malloc(num_iter*sizeof(uint64_t));
+        double insertTime = runTest([&]() {
+            std::vector<std::thread> threads;
+            for(size_t i = 0; i < numThreads; i++) {
+                threads.push_back(std::thread([&, i] {
+                    threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
+                }));
+            }
+            for(auto& th: threads) {
+                th.join();
+            }
+        });
+        for(size_t i=0; i < numThreads; i++) {
+            if(!threadResults[i]) {
+                std::cerr << "FAILED" << std::endl;
+                return std::vector<double>{std::numeric_limits<double>::max()};
+            }
+        }
+        //! After insertions, generate some random values.
+        for (uint64_t i = 0; i < num_iter; i++) {
+            oprs[i] = rand() % 3;
+            if (oprs[i] == 0) { // delete
+                opr_vals[i] = keys[rand() % nvals];
+            } else if (oprs[i] == 1) { // query
+                opr_vals[i] = keys[rand() % nvals];
+            } else if (oprs[i] == 2) { // insert
+                opr_vals[i] = other_keys[rand() % nvals];
+            }
+        }
+
+        double workloadTime = runTest([&]() {
+            for (uint64_t i = 0; i < num_iter; i++) {
+                if (oprs[i] == 0) { // delete
+                    if constexpr (FTWrapper::canDelete) {
+                        ret = filter.remove(opr_vals[i]);
+                        if (!ret) {
+                            std::cerr << "Delete failed!" << std::endl;
+                            break;
+                        }
+                    }
+                } else if (oprs[i] == 1) { // query
+                    ret = filter.query(opr_vals[i]);
+                    if (!ret) {
+                        std::cerr << "Query failed!" << std::endl;
+                        break;
+                    }
+                } else if (oprs[i] == 2) { // insert
+                    if (!filter.insert(opr_vals[i])) {
+                        std::cerr << "Insert failed!" << std::endl;
+                        break;
+                    }
+                }
+            }
+        });
+        results.push_back(workloadTime);
+        return results;
+    }
+
+    template<typename FTWrapper>
+    static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
+        outputFolder /= std::to_string(s.N);
+        outputFolder /= std::to_string(s.numReplicants);
+        outputFolder /= std::to_string(s.numThreads);
+        std::filesystem::create_directories(outputFolder);
+        std::ofstream fmixed(outputFolder / "mixed.txt");
+
+    }
+};
+
 struct InsertDeleteWrapper {
     static constexpr std::string_view name = "InsertDelete";
 
@@ -1053,7 +1155,8 @@ using TestWrapperTuple = std::tuple<BenchmarkWrapper,
 MultithreadedWrapper, 
 // RandomInsertDeleteWrapper, StreamingInsertDeleteWrapper, 
 InsertDeleteWrapper,
-LoadFactorWrapper>;
+LoadFactorWrapper,
+MixedWorkloadBenchmarkWrapper>;
 
 using PQFTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wrapper, PQF_8_22BB_FRQ_Wrapper,
         PQF_8_31_Wrapper, PQF_8_31_FRQ_Wrapper, PQF_8_62_Wrapper, PQF_8_62_FRQ_Wrapper,
