@@ -754,10 +754,11 @@ struct MixedWorkloadBenchmarkWrapper {
         size_t num_iter = 1000000;
         size_t N = static_cast<size_t>(s.N * maxLoadFactor);
         FT filter(filterSlots);
-        std::vector<size_t> tickRanges = splitRange(0, N, numTicks);
+        std::vector<size_t> threadRanges = splitRange(0, N, numTicks);
         std::vector<size_t> keys = generateKeys<FT>(filter, N);
         std::vector<size_t> other_keys = generateKeys<FT>(filter, N);
         std::vector<double> results;
+	bool ret;
         size_t *threadResults = new size_t[numThreads];
         uint8_t *oprs = (uint8_t *)malloc(num_iter*sizeof(uint8_t));
         uint64_t *opr_vals = (uint64_t *)malloc(num_iter*sizeof(uint64_t));
@@ -782,11 +783,11 @@ struct MixedWorkloadBenchmarkWrapper {
         for (uint64_t i = 0; i < num_iter; i++) {
             oprs[i] = rand() % 3;
             if (oprs[i] == 0) { // delete
-                opr_vals[i] = keys[rand() % nvals];
+                opr_vals[i] = keys[rand() % N];
             } else if (oprs[i] == 1) { // query
-                opr_vals[i] = keys[rand() % nvals];
+                opr_vals[i] = keys[rand() % N];
             } else if (oprs[i] == 2) { // insert
-                opr_vals[i] = other_keys[rand() % nvals];
+                opr_vals[i] = other_keys[rand() % N];
             }
         }
 
