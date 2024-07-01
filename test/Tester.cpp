@@ -539,18 +539,15 @@ struct MultithreadedWrapper {
     static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
         double averageInsertTimes;
         double averageQueryTimes;
+        if(v.size() < 3 || (!v[0]) || (!v[1])) {
+            std::cerr << "A benchmark of " << FTWrapper::name << " failed!!!" << std::endl;
+            return;
+        }
 
         for (const auto &v: outputs) {
-            try {
-                size_t i = 3;
-                for (size_t j = 0; j < s.loadFactorTicks; j++) {
-                    averageInsertTimes += v.at(i) / outputs.size();
-                    averageQueryTimes += v.at(i + 1) / outputs.size();
-                }
-            } catch (std::out_of_range const& exc) {
-                std::cerr << "Some problematic output of " << FTWrapper::name << "; " << exc.what() << std::endl;
-                return;
-            }
+            size_t i = 3;
+            averageInsertTimes += v.at(i) / outputs.size();
+            averageQueryTimes += v.at(i + 1) / outputs.size();
         }
 
         double effectiveN = s.N * s.maxLoadFactor.value();
