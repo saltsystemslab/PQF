@@ -488,8 +488,6 @@ struct MultithreadedWrapper {
         auto threadRanges = splitRange(0, N, numThreads);
         size_t *threadResults = new size_t[numThreads];
         std::vector<double> results;
-        results.push_back(true);
-        results.push_back(true);
 
         double insertTime = runTest([&]() {
             std::vector<std::thread> threads;
@@ -506,7 +504,7 @@ struct MultithreadedWrapper {
         for(size_t i=0; i < numThreads; i++) {
             if(!threadResults[i]) {
                 std::cerr << "INSERT FAILED" << std::endl;
-                return std::vector<double>{std::numeric_limits<double>::max()};
+                return std::vector<double>{std::numeric_limits<double>::max(), std::numeric_limits<double>::max()};
             }
         }
 
@@ -525,7 +523,7 @@ struct MultithreadedWrapper {
         for(size_t i=0; i < numThreads; i++) {
             if(!threadResults[i]) {
                 std::cerr << "QUERY FAILED" << std::endl;
-                return std::vector<double>{std::numeric_limits<double>::max()};
+                return std::vector<double>{insertTime, std::numeric_limits<double>::max()};
             }
         }
 
@@ -541,7 +539,7 @@ struct MultithreadedWrapper {
         double averageQueryTimes;
 
         for (const auto &v: outputs) {
-            size_t i = 2;
+            size_t i = 0;
             averageInsertTimes += v.at(i) / outputs.size();
             averageQueryTimes += v.at(i + 1) / outputs.size();
         }
