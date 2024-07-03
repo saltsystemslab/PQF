@@ -85,7 +85,7 @@ bool insertItems(FT& filter, const std::vector<size_t>& keys, size_t start, size
         if(!filter.insert(keys[i])) {
             return false;
         }
-	std::cerr << "Inserted key " << keys[i];
+	//std::cerr << "Inserted key " << keys[i];
     }
     return true;
 }
