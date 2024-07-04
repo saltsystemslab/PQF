@@ -729,6 +729,142 @@ struct BenchmarkWrapper {
     }
 };
 
+struct MixedWorkloadMultithreadedBenchmarkWrapper {
+    static constexpr std::string_view name = "MixedWorkloadMultithreadedBenchmark";
+
+    template<typename FTWrapper>
+    static std::vector<double> run(Settings s) {
+        //! Get the number of threads
+        size_t numThreads = s.numThreads;
+        if(numThreads == 0) {
+            std::cerr << "Cannot have 0 threads!!" << std::endl;
+            return {};
+        }
+        if(numThreads > 1 && !FTWrapper::threaded) {
+            std::cerr << "Cannot test multiple threads when the filter does not support it!" << std::endl;
+            return {};
+        }
+        size_t numTicks = s.loadFactorTicks;
+        if(!s.maxLoadFactor) {
+            std::cerr << "Does not have a max load factor!" << std::endl;
+            return std::vector<double>{};
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+
+        using FT = typename FTWrapper::type;
+        size_t filterSlots = s.N;
+        size_t num_iter = 1000000;
+        size_t N = static_cast<size_t>(s.N * maxLoadFactor);
+        FT filter(filterSlots);
+        std::vector<size_t> threadRanges = splitRange(0, N, numThreads);
+        std::vector<size_t> keys = generateKeys<FT>(filter, N);
+        std::vector<size_t> other_keys = generateKeys<FT>(filter, N);
+        std::vector<double> results;
+        bool ret;
+        std::vector<size_t> threadResults(numThreads);
+        std::vector<size_t> oprs(num_iter);
+        std::vector<size_t> opr_vals(num_iter);
+        double insertTime = runTest([&]() {
+            std::vector<std::thread> threads;
+            for(size_t i = 0; i < numThreads; i++) {
+                threads.push_back(std::thread([&, i] {
+                    threadResults[i] = insertItems<FT>(filter, keys, threadRanges[i], threadRanges[i+1]);
+                }));
+            }
+            for(auto& th: threads) {
+                th.join();
+            }
+        });
+        for(size_t i=0; i < numThreads; i++) {
+            if(!threadResults[i]) {
+                std::cerr << "FAILED" << std::endl;
+                return std::vector<double>{std::numeric_limits<double>::max()};
+            }
+        }
+        //! After insertions, generate some random values.
+        size_t num_inserts = 0, num_queries = 0, num_deletes = 0;
+        for (uint64_t i = 0; i < num_iter; i++) {
+            oprs[i] = rand() % 3;
+            if (oprs[i] == 0 && num_deletes != 300000) { // delete
+                opr_vals[i] = keys[rand() % keys.size()];
+                num_deletes++;
+            } else if (oprs[i] == 1 && num_queries != 400000) { // query
+                opr_vals[i] = keys[rand() % keys.size()];
+                num_queries++;
+            } else if (oprs[i] == 2 && num_inserts != 300000) { // insert
+                opr_vals[i] = other_keys[rand() % other_keys.size()];
+                num_inserts++;
+            }
+        }
+
+        while ((num_deletes + num_queries + num_inserts) < num_iter) {
+            for (uint64_t i = 0; i < num_iter; i++) {
+                if (oprs[i] == 0 && num_deletes < 300000) {
+                    opr_vals[i] = keys[rand() % keys.size()];
+                    num_deletes++;
+                } else if (oprs[i] == 1 && num_queries < 400000) {
+                    opr_vals[i] = keys[rand() % keys.size()];
+                    num_queries++;
+                } else if (oprs[i] == 2 && num_inserts < 300000) {
+                    opr_vals[i] = other_keys[rand() % other_keys.size()];
+                    num_inserts++;
+                }
+            }
+        }
+        size_t wl_size = num_inserts + num_queries + num_deletes;
+        std::vector<size_t> threadOps = splitRange(0, num_iter, numThreads);
+        size_t chunkSize = wl_size / numThreads;
+        //! Divide up the ops array for multiple threads
+        double workloadTime = runTest([&]() {
+            std::vector<std::thread> threads;
+            for (size_t j = 0; j < numThreads; j++) {
+                size_t start = j * chunkSize;
+                size_t end = (j == numThreads - 1) ? wl_size : start + chunkSize;
+                threads.push_back(std::thread([&, start, end] {
+                    for (uint64_t i = start; i < end; i++) {
+                        if (oprs[i] == 0 && opr_vals[i] != 0) { // delete
+                            if constexpr (FTWrapper::canDelete) {
+                                ret = filter.remove(opr_vals[i]);
+                            }
+                        } else if (oprs[i] == 1 && opr_vals[i] != 0) { // query
+                            ret = filter.query(opr_vals[i]);
+                        } else if (oprs[i] == 2 && opr_vals[i] != 0) { // insert
+                            if (!filter.insert(opr_vals[i])) {
+                                std::cerr << "Insert failed!" << std::endl;
+                                break;
+                            }
+                        }
+                    }
+                }));
+            }
+            for(auto& th: threads) {
+                th.join();
+            }
+        });
+        results.push_back(workloadTime);
+        return results;
+    }
+
+    template<typename FTWrapper>
+    static void analyze(Settings s, std::filesystem::path outputFolder, std::vector<std::vector<double>> outputs) {
+        double effectiveN = s.N * s.maxLoadFactor.value();
+        double averageWorkloadTimes = 0;
+        for(auto v: outputs) {
+            averageWorkloadTimes += v[0] / outputs.size();
+        }
+        if(!s.maxLoadFactor) {
+            std::cerr << "Missing max load factor" << std::endl;
+            return;
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+        size_t maxLoadFactorPct = std::llround(maxLoadFactor * 100);
+        outputFolder /= std::to_string(maxLoadFactorPct);
+        std::filesystem::create_directories(outputFolder);
+        std::ofstream fmixed(outputFolder / (std::to_string(s.N) + "-mixed.txt"), std::ios_base::app);
+        fmixed << s.numThreads << " " << averageWorkloadTimes << " " << (1000000 / averageWorkloadTimes) << std::endl;
+    }
+};
+
 struct MixedWorkloadBenchmarkWrapper {
     static constexpr std::string_view name = "MixedWorkloadBenchmark";
 
@@ -1179,7 +1315,8 @@ MultithreadedWrapper,
 // RandomInsertDeleteWrapper, StreamingInsertDeleteWrapper, 
 InsertDeleteWrapper,
 LoadFactorWrapper,
-MixedWorkloadBenchmarkWrapper>;
+MixedWorkloadBenchmarkWrapper,
+MixedWorkloadMultithreadedBenchmarkWrapper>;
 
 using PQFTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wrapper, PQF_8_22BB_FRQ_Wrapper,
         PQF_8_31_Wrapper, PQF_8_31_FRQ_Wrapper, PQF_8_62_Wrapper, PQF_8_62_FRQ_Wrapper,
