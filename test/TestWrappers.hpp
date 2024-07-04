@@ -63,7 +63,8 @@ class BBFWrapper {
 
 public:
     size_t range;
-    BBFWrapper(size_t n_slots) : n_bits(n_slots), filter(SimdBlockFilterFixed(n_slots)) {
+    BBFWrapper(size_t n_slots): n_bits(n_slots),
+       filter(SimdBlockFilterFixed(n_bits))	{
         range = -1ull;
     }
 

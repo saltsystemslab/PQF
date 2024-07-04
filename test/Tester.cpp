@@ -593,6 +593,7 @@ struct BenchmarkWrapper {
         size_t N = static_cast<size_t>(s.N * maxLoadFactor);
         // std::cout << filterSlots << ", N: " << N << " " << maxLoadFactor << std::endl;
         FT filter(filterSlots);
+	size_t bits = static_cast<size_t>(-1.0 * filterSlots * std::log(0.0044) / std::pow(std::log(2), 2));
 
         std::vector<size_t> tickRanges = splitRange(0, N, numTicks);
         std::vector<size_t> keys = generateKeys<FT>(filter, N);
@@ -783,13 +784,13 @@ struct MixedWorkloadBenchmarkWrapper {
 	size_t num_inserts = 0, num_queries = 0, num_deletes = 0;
         for (uint64_t i = 0; i < num_iter; i++) {
             oprs[i] = rand() % 3;
-            if (oprs[i] == 0 && num_deletes != 300000) { // delete
+            if (oprs[i] == 0 && num_deletes != 400000) { // delete
                 opr_vals[i] = keys[rand() % keys.size()];
 		num_deletes++;
             } else if (oprs[i] == 1 && num_queries != 400000) { // query
                 opr_vals[i] = keys[rand() % keys.size()];
 		num_queries++;
-            } else if (oprs[i] == 2 && num_inserts != 300000) { // insert
+            } else if (oprs[i] == 2 && num_inserts != 200000) { // insert
                 opr_vals[i] = other_keys[rand() % other_keys.size()];
 		num_inserts++;
             }
@@ -797,13 +798,13 @@ struct MixedWorkloadBenchmarkWrapper {
 
 	while ((num_deletes + num_queries + num_inserts) < num_iter) {
     for (uint64_t i = 0; i < num_iter; i++) {
-        if (oprs[i] == 0 && num_deletes < 300000) {
+        if (oprs[i] == 0 && num_deletes < 400000) {
             opr_vals[i] = keys[rand() % keys.size()];
             num_deletes++;
         } else if (oprs[i] == 1 && num_queries < 400000) {
             opr_vals[i] = keys[rand() % keys.size()];
             num_queries++;
-        } else if (oprs[i] == 2 && num_inserts < 300000) {
+        } else if (oprs[i] == 2 && num_inserts < 200000) {
             opr_vals[i] = other_keys[rand() % other_keys.size()];
             num_inserts++;
         }
@@ -812,13 +813,17 @@ struct MixedWorkloadBenchmarkWrapper {
 	size_t wl_size = num_inserts + num_queries + num_deletes;
         double workloadTime = runTest([&]() {
             for (uint64_t i = 0; i < wl_size; i++) {
-                if (oprs[i] == 0) { // delete
+                if (oprs[i] == 0 && opr_vals[i] != 0) { // delete
+		
+	   // std::cerr << "Operation delete" << std::endl;
                     if constexpr (FTWrapper::canDelete) {
                         ret = filter.remove(opr_vals[i]);
                     }
-                } else if (oprs[i] == 1) { // query
+                } else if (oprs[i] == 1 && opr_vals[i] != 0) { // query
+//std::cerr << "Operation query" << std::endl;
                     ret = filter.query(opr_vals[i]);
                 } else if (oprs[i] == 2 && opr_vals[i] != 0) { // insert
+//std::cerr << "Operation insert" << std::endl;
 		    // std::cerr << "Inserting key " << opr_vals[i] << std::endl;
                     if (!filter.insert(opr_vals[i])) {
                         std::cerr << "Insert failed!" << std::endl;
@@ -827,6 +832,9 @@ struct MixedWorkloadBenchmarkWrapper {
                 }
             }
         });
+	delete threadResults;
+	free(opr_vals);
+	free(oprs);
         results.push_back(workloadTime);
         return results;
     }
