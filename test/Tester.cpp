@@ -83,6 +83,7 @@ template<typename FT>
 bool insertItems(FT& filter, const std::vector<size_t>& keys, size_t start, size_t end) {
     for(size_t i{start}; i < end; i++) {
         if(!filter.insert(keys[i])) {
+	    std::cerr << "Tried to insert key " << keys[i] << "\n";
             return false;
         }
 	//std::cerr << "Inserted key " << keys[i];
@@ -760,9 +761,9 @@ struct MixedWorkloadBenchmarkWrapper {
         std::vector<size_t> other_keys = generateKeys<FT>(filter, N);
         std::vector<double> results;
 	bool ret;
-        size_t *threadResults = new size_t[numThreads];
-        uint8_t *oprs = (uint8_t *)malloc(num_iter*sizeof(uint8_t));
-        uint64_t *opr_vals = (uint64_t *)malloc(num_iter*sizeof(uint64_t));
+	std::vector<size_t> threadResults(numThreads);
+	std::vector<size_t> oprs(num_iter);
+	std::vector<size_t> opr_vals(num_iter);
         double insertTime = runTest([&]() {
             std::vector<std::thread> threads;
             for(size_t i = 0; i < numThreads; i++) {
@@ -784,13 +785,13 @@ struct MixedWorkloadBenchmarkWrapper {
 	size_t num_inserts = 0, num_queries = 0, num_deletes = 0;
         for (uint64_t i = 0; i < num_iter; i++) {
             oprs[i] = rand() % 3;
-            if (oprs[i] == 0 && num_deletes != 400000) { // delete
+            if (oprs[i] == 0 && num_deletes != 300000) { // delete
                 opr_vals[i] = keys[rand() % keys.size()];
 		num_deletes++;
             } else if (oprs[i] == 1 && num_queries != 400000) { // query
                 opr_vals[i] = keys[rand() % keys.size()];
 		num_queries++;
-            } else if (oprs[i] == 2 && num_inserts != 200000) { // insert
+            } else if (oprs[i] == 2 && num_inserts != 300000) { // insert
                 opr_vals[i] = other_keys[rand() % other_keys.size()];
 		num_inserts++;
             }
@@ -798,13 +799,13 @@ struct MixedWorkloadBenchmarkWrapper {
 
 	while ((num_deletes + num_queries + num_inserts) < num_iter) {
     for (uint64_t i = 0; i < num_iter; i++) {
-        if (oprs[i] == 0 && num_deletes < 400000) {
+        if (oprs[i] == 0 && num_deletes < 300000) {
             opr_vals[i] = keys[rand() % keys.size()];
             num_deletes++;
         } else if (oprs[i] == 1 && num_queries < 400000) {
             opr_vals[i] = keys[rand() % keys.size()];
             num_queries++;
-        } else if (oprs[i] == 2 && num_inserts < 200000) {
+        } else if (oprs[i] == 2 && num_inserts < 300000) {
             opr_vals[i] = other_keys[rand() % other_keys.size()];
             num_inserts++;
         }
@@ -814,17 +815,12 @@ struct MixedWorkloadBenchmarkWrapper {
         double workloadTime = runTest([&]() {
             for (uint64_t i = 0; i < wl_size; i++) {
                 if (oprs[i] == 0 && opr_vals[i] != 0) { // delete
-		
-	   // std::cerr << "Operation delete" << std::endl;
                     if constexpr (FTWrapper::canDelete) {
                         ret = filter.remove(opr_vals[i]);
                     }
                 } else if (oprs[i] == 1 && opr_vals[i] != 0) { // query
-//std::cerr << "Operation query" << std::endl;
                     ret = filter.query(opr_vals[i]);
                 } else if (oprs[i] == 2 && opr_vals[i] != 0) { // insert
-//std::cerr << "Operation insert" << std::endl;
-		    // std::cerr << "Inserting key " << opr_vals[i] << std::endl;
                     if (!filter.insert(opr_vals[i])) {
                         std::cerr << "Insert failed!" << std::endl;
                         break;
@@ -832,9 +828,6 @@ struct MixedWorkloadBenchmarkWrapper {
                 }
             }
         });
-	delete threadResults;
-	free(opr_vals);
-	free(oprs);
         results.push_back(workloadTime);
         return results;
     }
