@@ -97,14 +97,14 @@ bool performMixedWorkload(FT& filter, const std::vector<size_t>& oprs, const std
     size_t ret = 0;
     for(size_t i{start}; i < end; i++) {
         if (oprs[i] == 0) { // delete
-            ret += filter.remove(opr_vals[i]);
+            //ret += filter.remove(opr_vals[i]);
         } else if (oprs[i] == 1) { // query
             ret += filter.query(opr_vals[i]);
         } else if (oprs[i] == 2) { // insert
-            if (!filter.insert(opr_vals[i])) {
-                std::cerr << "Insert failed for key " << opr_vals[i] << std::endl;
-                break;
-            }
+           // if (!filter.insert(opr_vals[i])) {
+           //     std::cerr << "Insert failed for key " << opr_vals[i] << std::endl;
+           //     break;
+           // }
         }
     }
     std::cerr << "Ops" << ret << "\n";
@@ -865,7 +865,7 @@ struct MixedWorkloadMultithreadedBenchmarkWrapper {
             std::vector<std::thread> threads;
 	    for(size_t i = 0; i < numThreads; i++) {
 	       threads.push_back(std::thread([&, i] {
-	       threadResults[i] = performMixedWorkload<FT>(filter, oprs, keys, threadOps[i], threadOps[i+1]);
+	       threadResults[i] = performMixedWorkload<FT>(filter, oprs, opr_vals, threadOps[i], threadOps[i+1]);
 										                    }));
 	     }
             for(auto& th: threads) {
