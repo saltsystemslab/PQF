@@ -11,6 +11,7 @@
 #include <thread>
 #include <filesystem>
 #include <limits>
+#include <sys/time.h>
 
 //returns microseconds
 double runTest(std::function<void(void)> t) {
@@ -88,6 +89,25 @@ bool insertItems(FT& filter, const std::vector<size_t>& keys, size_t start, size
         }
 	//std::cerr << "Inserted key " << keys[i];
     }
+    return true;
+}
+
+template<typename FT>
+bool performMixedWorkload(FT& filter, const std::vector<size_t>& oprs, const std::vector<size_t>& opr_vals, size_t start, size_t end) {
+    size_t ret = 0;
+    for(size_t i{start}; i < end; i++) {
+        if (oprs[i] == 0) { // delete
+            ret += filter.remove(opr_vals[i]);
+        } else if (oprs[i] == 1) { // query
+            ret += filter.query(opr_vals[i]);
+        } else if (oprs[i] == 2) { // insert
+            if (!filter.insert(opr_vals[i])) {
+                std::cerr << "Insert failed for key " << opr_vals[i] << std::endl;
+                break;
+            }
+        }
+    }
+    std::cerr << "Ops" << ret << "\n";
     return true;
 }
 
@@ -753,14 +773,14 @@ struct MixedWorkloadMultithreadedBenchmarkWrapper {
 
         using FT = typename FTWrapper::type;
         size_t filterSlots = s.N;
-        size_t num_iter = 1000000;
+        size_t num_iter = 10000000;
         size_t N = static_cast<size_t>(s.N * maxLoadFactor);
         FT filter(filterSlots);
         std::vector<size_t> threadRanges = splitRange(0, N, numThreads);
         std::vector<size_t> keys = generateKeys<FT>(filter, N);
         std::vector<size_t> other_keys = generateKeys<FT>(filter, N);
         std::vector<double> results;
-        bool ret;
+        size_t ret;
         std::vector<size_t> threadResults(numThreads);
         std::vector<size_t> oprs(num_iter);
         std::vector<size_t> opr_vals(num_iter);
@@ -781,66 +801,83 @@ struct MixedWorkloadMultithreadedBenchmarkWrapper {
                 return std::vector<double>{std::numeric_limits<double>::max()};
             }
         }
+	srand(time(NULL));
         //! After insertions, generate some random values.
         size_t num_inserts = 0, num_queries = 0, num_deletes = 0;
         for (uint64_t i = 0; i < num_iter; i++) {
-            oprs[i] = rand() % 3;
-            if (oprs[i] == 0 && num_deletes != 300000) { // delete
-                opr_vals[i] = keys[rand() % keys.size()];
+            size_t opcode = rand() % 3;
+            if (opcode == 0 && num_deletes != 3000000) { // delete
+		size_t val =  keys[rand() % keys.size()];   
+		if (val == 0)
+			continue;
+		oprs[i] = opcode;
+                opr_vals[i] = val;
                 num_deletes++;
-            } else if (oprs[i] == 1 && num_queries != 400000) { // query
-                opr_vals[i] = keys[rand() % keys.size()];
+            } else if (opcode == 1 && num_queries != 4000000) { // query
+		size_t val =  keys[rand() % keys.size()];       
+		if (val == 0)
+			continue;
+	oprs[i] = opcode;
+                opr_vals[i] = val;
                 num_queries++;
-            } else if (oprs[i] == 2 && num_inserts != 300000) { // insert
-                opr_vals[i] = other_keys[rand() % other_keys.size()];
+            } else if (opcode == 2 && num_inserts != 3000000) { // insert
+		size_t val = other_keys[rand() % other_keys.size()];       
+		if (val == 0)
+			continue;
+		oprs[i] = opcode;
+                opr_vals[i] = val;
                 num_inserts++;
             }
         }
+	size_t end_index = num_inserts + num_deletes + num_queries + 1;
+        while (num_deletes < 0.3 * num_iter) {
+	  size_t val = keys[rand() % keys.size()];
+	  if (val == 0)
+		  continue;
+          oprs[end_index] = 0;
+          opr_vals[end_index] = val;
+          num_deletes++;
+          end_index++;
+        }
 
-        while ((num_deletes + num_queries + num_inserts) < num_iter) {
-            for (uint64_t i = 0; i < num_iter; i++) {
-                if (oprs[i] == 0 && num_deletes < 300000) {
-                    opr_vals[i] = keys[rand() % keys.size()];
-                    num_deletes++;
-                } else if (oprs[i] == 1 && num_queries < 400000) {
-                    opr_vals[i] = keys[rand() % keys.size()];
-                    num_queries++;
-                } else if (oprs[i] == 2 && num_inserts < 300000) {
-                    opr_vals[i] = other_keys[rand() % other_keys.size()];
-                    num_inserts++;
-                }
-            }
+       while (num_inserts < 0.3 * num_iter) {
+	  size_t val = other_keys[rand() % other_keys.size()];
+	  if (val == 0)
+		  continue;
+          oprs[end_index] = 2;
+          opr_vals[end_index] = val;
+          num_inserts++;
+          end_index++;
+        }
+
+        while (num_queries < 0.4 * num_iter) {
+	  size_t val = keys[rand() % keys.size()];
+	  if (val == 0)
+		  continue;
+          oprs[end_index] = 1;
+          opr_vals[end_index] = val;
+          num_queries++;
+          end_index++;
         }
         size_t wl_size = num_inserts + num_queries + num_deletes;
         std::vector<size_t> threadOps = splitRange(0, num_iter, numThreads);
-        size_t chunkSize = wl_size / numThreads;
-        //! Divide up the ops array for multiple threads
         double workloadTime = runTest([&]() {
             std::vector<std::thread> threads;
-            for (size_t j = 0; j < numThreads; j++) {
-                size_t start = j * chunkSize;
-                size_t end = (j == numThreads - 1) ? wl_size : start + chunkSize;
-                threads.push_back(std::thread([&, start, end] {
-                    for (uint64_t i = start; i < end; i++) {
-                        if (oprs[i] == 0 && opr_vals[i] != 0) { // delete
-                            if constexpr (FTWrapper::canDelete) {
-                                ret = filter.remove(opr_vals[i]);
-                            }
-                        } else if (oprs[i] == 1 && opr_vals[i] != 0) { // query
-                            ret = filter.query(opr_vals[i]);
-                        } else if (oprs[i] == 2 && opr_vals[i] != 0) { // insert
-                            if (!filter.insert(opr_vals[i])) {
-                                std::cerr << "Insert failed!" << std::endl;
-                                break;
-                            }
-                        }
-                    }
-                }));
-            }
+	    for(size_t i = 0; i < numThreads; i++) {
+	       threads.push_back(std::thread([&, i] {
+	       threadResults[i] = performMixedWorkload<FT>(filter, oprs, keys, threadOps[i], threadOps[i+1]);
+										                    }));
+	     }
             for(auto& th: threads) {
                 th.join();
             }
         });
+
+        for(size_t i=0; i < numThreads; i++) {
+            if(!threadResults[i]) {
+                std::cerr << "FAILED" << std::endl;
+            }
+        }
         results.push_back(workloadTime);
         return results;
     }
@@ -861,7 +898,7 @@ struct MixedWorkloadMultithreadedBenchmarkWrapper {
         outputFolder /= std::to_string(maxLoadFactorPct);
         std::filesystem::create_directories(outputFolder);
         std::ofstream fmixed(outputFolder / (std::to_string(s.N) + "-mixed.txt"), std::ios_base::app);
-        fmixed << s.numThreads << " " << averageWorkloadTimes << " " << (1000000 / averageWorkloadTimes) << std::endl;
+        fmixed << s.numThreads << " " << averageWorkloadTimes << " " << (10000000 / averageWorkloadTimes) << std::endl;
     }
 };
 
@@ -889,7 +926,7 @@ struct MixedWorkloadBenchmarkWrapper {
 
         using FT = typename FTWrapper::type;
         size_t filterSlots = s.N;
-        size_t num_iter = 1000000;
+        size_t num_iter = 10000000;
         size_t N = static_cast<size_t>(s.N * maxLoadFactor);
         FT filter(filterSlots);
         std::vector<size_t> threadRanges = splitRange(0, N, numThreads);
@@ -921,32 +958,39 @@ struct MixedWorkloadBenchmarkWrapper {
 	size_t num_inserts = 0, num_queries = 0, num_deletes = 0;
         for (uint64_t i = 0; i < num_iter; i++) {
             oprs[i] = rand() % 3;
-            if (oprs[i] == 0 && num_deletes != 300000) { // delete
+            if (oprs[i] == 0 && num_deletes != 3000000) { // delete
                 opr_vals[i] = keys[rand() % keys.size()];
 		num_deletes++;
-            } else if (oprs[i] == 1 && num_queries != 400000) { // query
+            } else if (oprs[i] == 1 && num_queries != 4000000) { // query
                 opr_vals[i] = keys[rand() % keys.size()];
 		num_queries++;
-            } else if (oprs[i] == 2 && num_inserts != 300000) { // insert
+            } else if (oprs[i] == 2 && num_inserts != 3000000) { // insert
                 opr_vals[i] = other_keys[rand() % other_keys.size()];
 		num_inserts++;
             }
         }
 
-	while ((num_deletes + num_queries + num_inserts) < num_iter) {
-    for (uint64_t i = 0; i < num_iter; i++) {
-        if (oprs[i] == 0 && num_deletes < 300000) {
-            opr_vals[i] = keys[rand() % keys.size()];
-            num_deletes++;
-        } else if (oprs[i] == 1 && num_queries < 400000) {
-            opr_vals[i] = keys[rand() % keys.size()];
-            num_queries++;
-        } else if (oprs[i] == 2 && num_inserts < 300000) {
-            opr_vals[i] = other_keys[rand() % other_keys.size()];
-            num_inserts++;
+	size_t end_index = num_inserts + num_deletes + num_queries + 1;
+        while (num_deletes < 0.3 * num_iter) {
+          oprs[end_index] = 0;
+          opr_vals[end_index] = keys[rand() % keys.size()];
+          num_deletes++;
+          end_index++;
         }
-    }
-}
+
+        while (num_inserts < 0.3 * num_iter) {
+          oprs[end_index] = 2;
+          opr_vals[end_index] = other_keys[rand() % other_keys.size()];
+          num_inserts++;
+          end_index++;
+        }
+
+        while (num_queries < 0.4 * num_iter) {
+          oprs[end_index] = 1;
+          opr_vals[end_index] = keys[rand() % keys.size()];
+          num_queries++;
+          end_index++;
+        }
 	size_t wl_size = num_inserts + num_queries + num_deletes;
         double workloadTime = runTest([&]() {
             for (uint64_t i = 0; i < wl_size; i++) {
@@ -984,7 +1028,7 @@ struct MixedWorkloadBenchmarkWrapper {
         outputFolder /= std::to_string(maxLoadFactorPct);
 	std::filesystem::create_directories(outputFolder);
         std::ofstream fmixed(outputFolder / (std::to_string(s.N) + "-mixed.txt"), std::ios_base::app);
-        fmixed << s.numThreads << " " << averageWorkloadTimes << " " << (1000000 / averageWorkloadTimes) << std::endl;
+        fmixed << s.numThreads << " " << averageWorkloadTimes << " " << (10000000 / averageWorkloadTimes) << std::endl;
     }
 };
 
@@ -1308,7 +1352,7 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         TC_Wrapper, CFF12_Wrapper, BBFF_Wrapper, 
         OriginalCF12_Wrapper, OriginalCF16_Wrapper,
         Morton3_12_Wrapper, Morton3_18_Wrapper,
-        VQF_Wrapper, VQFT_Wrapper, BBF_Wrapper>;
+        VQF_Wrapper, VQFT_Wrapper, BBF_Wrapper, PQF_8_3_Wrapper>;
 
 using TestWrapperTuple = std::tuple<BenchmarkWrapper, 
 MultithreadedWrapper, 
@@ -1322,7 +1366,7 @@ using PQFTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_W
         PQF_8_31_Wrapper, PQF_8_31_FRQ_Wrapper, PQF_8_62_Wrapper, PQF_8_62_FRQ_Wrapper,
         PQF_8_53_Wrapper, PQF_8_53_FRQ_Wrapper, PQF_16_36_Wrapper, PQF_16_36_FRQ_Wrapper,
         PQF_8_21_T_Wrapper, PQF_8_21_FRQ_T_Wrapper, PQF_8_52_T_Wrapper, PQF_8_52_FRQ_T_Wrapper,
-        PQF_16_35_T_Wrapper, PQF_16_35_FRQ_T_Wrapper>;
+        PQF_16_35_T_Wrapper, PQF_16_35_FRQ_T_Wrapper, PQF_8_3_Wrapper>;
 
 using AllTester = TemplatedTester<FTTuple, TestWrapperTuple>;
 

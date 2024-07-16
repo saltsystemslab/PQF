@@ -54,6 +54,8 @@ struct PQF_Wrapper_SingleT {
 
 static const char PQF_8_22_Wrapper_str[] = "PQF_8_22";
 using PQF_8_22_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22, PQF_8_22_Wrapper_str>;
+static const char PQF_8_3_Wrapper_str[] = "PQF_8_3";
+using PQF_8_3_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_3, PQF_8_3_Wrapper_str>;
 static const char PQF_8_22_FRQ_Wrapper_str[] = "PQF_8_22_FRQ";
 using PQF_8_22_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22_FRQ, PQF_8_22_FRQ_Wrapper_str>;
 static const char PQF_8_22BB_Wrapper_str[] = "PQF_8_22BB";

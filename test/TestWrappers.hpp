@@ -63,10 +63,16 @@ class BBFWrapper {
 
 public:
     size_t range;
-    BBFWrapper(size_t n_slots): n_bits(n_slots),
-       filter(SimdBlockFilterFixed(n_bits))	{
-        range = -1ull;
-    }
+    //BBFWrapper(size_t n_slots): n_bits(n_slots),
+    //   filter(SimdBlockFilterFixed(n_bits))	{
+    //    range = -1ull;
+    //}
+    //
+
+    BBFWrapper(size_t n_slots): n_bits(static_cast<size_t>(-1 * (n_slots * std::log(0.595)) / (std::pow(std::log(2), 2)))),
+	       filter(SimdBlockFilterFixed(n_bits))     {
+		               range = -1ull;
+			           }
 
     ~BBFWrapper() {
     }
