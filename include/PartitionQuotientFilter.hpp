@@ -595,6 +595,7 @@ namespace PQF {
     using PQF_8_22_FRQ = PartitionQuotientFilter<8, 22, 26, 18, 8, 32, 32, true, false>;
     using PQF_8_22BB = PartitionQuotientFilter<8, 22, 26, 37, 8, 32, 64, false, false>;
     using PQF_8_22BB_FRQ = PartitionQuotientFilter<8, 22, 26, 37, 8, 32, 64, true, false>;
+    using PQF_8_3 = PartitionQuotientFilter<8, 3, 6, 6, 8, 32, 32, false, false>;
 
     using PQF_8_31 = PartitionQuotientFilter<8, 31, 25, 17, 8, 32, 32, false, false>;
     using PQF_8_31_FRQ = PartitionQuotientFilter<8, 31, 25, 17, 8, 32, 32, true, false>;

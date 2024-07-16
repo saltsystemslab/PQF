@@ -1,14 +1,20 @@
 Benchmark
-NumKeys 1048576 4194304 
+NumKeys 1048576
+# 1048576 
+# 4194304 
 # 67108864 
 # 268435456
 NumThreads 1
 NumTrials 1
 NumReplicants 1
-LoadFactorTicks 20
+LoadFactorTicks 1
 
 MaxLoadFactor 0.83
-PQF_8_22 
+PQF_8_22
+
+MaxLoadFactor 0.915
+#BBFT
+# PQF_8_52_T
 # PQF_8_22_FRQ
 
 MaxLoadFactor 0.895
@@ -18,19 +24,22 @@ MaxLoadFactor 0.895
 # PQF_8_31 PQF_8_31_FRQ
 
 MaxLoadFactor 0.915
-# PQF_8_53 PQF_8_53_FRQ
+# PQF_8_53 
+# PQF_8_53_FRQ
 
 # MaxLoadFactor 0.91
 # PQF_8_62 PQF_8_62_FRQ
 
 MaxLoadFactor 0.88
-# PQF_16_36 PQF_16_36_FRQ
+# PQF_16_36 
+# PQF_16_36_FRQ
 
 MaxLoadFactor 0.93
-VQF
+# VQFT
 
-MaxLoadFactor 1.0
-# PF_TC PF_CFF12 
+MaxLoadFactor 0.9
+# PF_TC 
+# PF_CFF12 
 # PF_BBFF 
 # CFF12 BBFF
 
@@ -39,7 +48,7 @@ MaxLoadFactor 0.945
 # OriginalCF16
 
 MaxLoadFactor 0.98
-Morton3_12 
+# Morton3_12 
 # Morton3_18
 
 #Have to reset it to 0.9 as I had that set before, which is definitely an issue as this thing does not make use of this setting. Gonna have to figure out how to get around this
@@ -93,3 +102,24 @@ MaxLoadFactor 0.93
 
 MaxLoadFactor 0.9
 # OriginalCF12 
+
+MixedWorkloadBenchmark
+NumTrials 1
+NumReplicants 1
+NumKeys 1073741824
+# NumKeys 67108864
+LoadFactorTicks 10
+MaxLoadFactor 0.83
+#PQF_8_22_FRQ
+
+MaxLoadFactor 0.93
+#VQF
+
+MaxLoadFactor 0.98
+#Morton3_12
+
+MaxLoadFactor 0.945
+#OriginalCF12
+
+MaxLoadFactor 0.915
+#PQF_8_53_FRQ

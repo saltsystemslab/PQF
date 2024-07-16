@@ -3,7 +3,8 @@
 	url = https://github.com/TomerEven/Prefix-Filter
 [submodule "test/vqf"]
 	path = test/vqf
-	url = https://github.com/splatlab/vqf
+	url = https://github.com/aaditya2200/vqf
+	branch = master
 [submodule "test/cuckoofilter"]
 	path = test/cuckoofilter
 	url = https://github.com/efficient/cuckoofilter.git

@@ -54,6 +54,8 @@ struct PQF_Wrapper_SingleT {
 
 static const char PQF_8_22_Wrapper_str[] = "PQF_8_22";
 using PQF_8_22_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22, PQF_8_22_Wrapper_str>;
+static const char PQF_8_3_Wrapper_str[] = "PQF_8_3";
+using PQF_8_3_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_3, PQF_8_3_Wrapper_str>;
 static const char PQF_8_22_FRQ_Wrapper_str[] = "PQF_8_22_FRQ";
 using PQF_8_22_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22_FRQ, PQF_8_22_FRQ_Wrapper_str>;
 static const char PQF_8_22BB_Wrapper_str[] = "PQF_8_22BB";
@@ -225,6 +227,15 @@ struct VQFT_Wrapper {
     static constexpr bool onlyInsertsThreaded = true;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+};
+
+struct BBF_Wrapper {
+    using type = BBFWrapper;
+    static constexpr std::string_view name = "BBFT";
+    static constexpr bool threaded = false;
+    static constexpr bool onlyInsertsThreaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = false;
 };
 
 #endif

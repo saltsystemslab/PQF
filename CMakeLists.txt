@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
+set(CMAKE_C_COMPILER /usr/bin/gcc-11)
+set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
 project(BenchFilter)
 
 find_package(OpenSSL REQUIRED)
 
+# set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "-march=native -pthread")
@@ -18,6 +21,7 @@ set(DPF_FILES
 set(PF_FILES
     test/Prefix-Filter/Prefix-Filter/Shift_op.hpp test/Prefix-Filter/Prefix-Filter/Shift_op.cpp
     test/Prefix-Filter/Prefix-Filter/min_pd256.hpp test/Prefix-Filter/Prefix-Filter/min_pd256.cpp
+    test/Prefix-Filter/Bloom_Filter/simd-block-fixed-fpp.h
 )
 
 set(TC_FILES
@@ -46,8 +50,6 @@ add_library(PQF ${DPF_FILES})
 target_include_directories(PQF PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 
-
-
 set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
   ${PROJECT_SOURCE_DIR}/test/vqf/obj/vqf_filter.o
   ${PROJECT_SOURCE_DIR}/test/vqf/obj/shuffle_matrix_512.o
@@ -66,4 +68,4 @@ endif()
 
 target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
 target_link_libraries(Tester PRIVATE vqf)
-target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter")
+target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
