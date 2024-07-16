@@ -27,7 +27,7 @@ NumReplicants 1
 LoadFactorTicks 20
 
 MaxLoadFactor 0.83
-PQF_8_21_FRQ_T
+# PQF_8_21_FRQ_T
 
 MaxLoadFactor 0.93
 # VQFT

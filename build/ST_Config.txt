@@ -10,7 +10,7 @@ NumReplicants 1
 LoadFactorTicks 1
 
 MaxLoadFactor 0.83
-PQF_8_3
+PQF_8_22
 
 MaxLoadFactor 0.915
 #BBFT
@@ -104,7 +104,7 @@ MaxLoadFactor 0.9
 # OriginalCF12 
 
 MixedWorkloadBenchmark
-NumTrials 3
+NumTrials 1
 NumReplicants 1
 NumKeys 1073741824
 # NumKeys 67108864

@@ -9,6 +9,8 @@ git submodule update --init
 - Build the VQF files. Please execute the following commands.
 ```shell
 cd test/vqf
+git checkout master
+git pull
 make clean && make THREAD=1
 cd ../..
 ```
