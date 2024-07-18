@@ -6,9 +6,9 @@ README
 ```shell
 git submodule update --init
 ```
-- Build the PQF files. Please execute the following commands.
+- Build the VQF files. Please execute the following commands.
 ```shell
-cd test/pqf
+cd test/vqf
 git checkout master
 git pull
 make clean && make THREAD=1
