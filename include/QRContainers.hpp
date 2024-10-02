@@ -90,13 +90,14 @@ namespace PQF {
         inline BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t R, size_t backyardSize): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
            finishInitCuckooHash(frontQR, hashNum, backyardSize);
         }
-#endif
+#else
         inline BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t R): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
             // todo this is called
             // an if condition here maybe?
             // or ifdef
             finishInit(frontQR.bucketIndex, hashNum, R);
         }
+#endif
     };
 
 }
