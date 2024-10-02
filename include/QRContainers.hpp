@@ -39,6 +39,7 @@ namespace PQF {
                 if constexpr (DEBUG)
                     assert(whichFrontyardBucket < 16);
                 bucketIndex = frontyardBucketIndex / ConsolidationFactor;
+                // todo why is this required?
                 remainder += whichFrontyardBucket << RemainderBits;
             }
             else {
@@ -63,12 +64,37 @@ namespace PQF {
             }
         }
 
+        inline void finishInitCuckooHash(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum) {
+            // just do a simple cuckoo hash. Maybe use murmur hash?
+            if (hashNum) {
+                // this should do the XOR
+                const uint64_t PRIME = 16777619;
+                const size_t stored_hash = frontQR.bucketIndex % backyard.size();
+                // Create a different hash value using rotation and prime multiplication
+                size_t transformed = ((stored_hash << 13) | (stored_hash >> 51)) * PRIME;
+                // XOR the transformed value with original hash
+                bucketIndex = (stored_hash ^ transformed) % backyard.size();
+            } else {
+                // compute hash using murmur64a
+                // todo find out bucket size and hardcode it here for now
+                bucketIndex = frontQR.bucketIndex % backyard.size();
+            }
+        }
+
         inline BackyardQRContainer(std::size_t quotient, std::uint64_t remainder, bool hashNum, std::uint64_t R): /*quotient{quotient},*/ realRemainder{remainder}, miniBucketIndex{quotient%NumMiniBuckets}, remainder(remainder) {
             std::uint64_t frontyardBucketIndex = quotient/NumMiniBuckets;
             finishInit(frontyardBucketIndex, hashNum, R);
         }
 
         inline BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t R): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
+            // todo this is called
+            // an if condition here maybe?
+            // or ifdef
+#ifdef CUCKOO_HASH
+            // todo call cuckoo hash func here
+            finishInitCuckooHash(frontQR, hashNum);
+            return;
+#endif
             finishInit(frontQR.bucketIndex, hashNum, R);
         }
     };

@@ -67,5 +67,6 @@ else()
 endif()
 
 target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
+target_compile_definitions(Tester PRIVATE CUCKOO_HASH)
 target_link_libraries(Tester PRIVATE vqf)
 target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")

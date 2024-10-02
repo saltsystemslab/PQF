@@ -214,6 +214,7 @@ namespace PQF {
                     std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
                     std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
                     if(fillOfFirstBackyardBucket==0 && fillOfSecondBackyardBucket==0) return true;
+                    // todo which frontyard bucket
                     std::uint64_t keysFromFrontyardInFirstBackyard = backyard[firstBackyardQR.bucketIndex].remainderStore.query4BitPartMask(firstBackyardQR.whichFrontyardBucket, (1ull << fillOfFirstBackyardBucket) - 1);
                     std::uint64_t keysFromFrontyardInSecondBackyard = backyard[secondBackyardQR.bucketIndex].remainderStore.query4BitPartMask(secondBackyardQR.whichFrontyardBucket, (1ull << fillOfSecondBackyardBucket) - 1);
                     if constexpr (DEBUG) {
@@ -252,8 +253,13 @@ namespace PQF {
                     assert((uint64_t)(&frontyard[frontyardQR.bucketIndex]) % FrontyardBucketSize == 0);
                 }
                 if(overflow.miniBucketIndex != -1ull) {
+#ifdef CUCKOO_HASH
+                    BackyardQRContainerType firstBackyardQR(overflow, 0, R, backyard.size());
+                    BackyardQRContainerType secondBackyardQR(overflow, 1, R, backyard.size());
+#else
                     BackyardQRContainerType firstBackyardQR(overflow, 0, R);
                     BackyardQRContainerType secondBackyardQR(overflow, 1, R);
+#endif
                     lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
 
                     bool retval = insertOverflow(overflow, firstBackyardQR, secondBackyardQR);

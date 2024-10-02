@@ -6,7 +6,7 @@
 #include <immintrin.h>
 
 namespace PQF {
-    constexpr bool DEBUG = false;
+    constexpr bool DEBUG = true;
     constexpr bool PARTIAL_DEBUG = false;
     constexpr bool NEW_HASH = false;
     constexpr bool DIAGNOSTICS = false;
