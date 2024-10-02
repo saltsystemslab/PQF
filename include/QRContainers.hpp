@@ -64,20 +64,20 @@ namespace PQF {
             }
         }
 
-        inline void finishInitCuckooHash(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum) {
+        inline void finishInitCuckooHash(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, size_t backyardSize) {
             // just do a simple cuckoo hash. Maybe use murmur hash?
             if (hashNum) {
                 // this should do the XOR
                 const uint64_t PRIME = 16777619;
-                const size_t stored_hash = frontQR.bucketIndex % backyard.size();
+                const size_t stored_hash = frontQR.bucketIndex % backyardSize;
                 // Create a different hash value using rotation and prime multiplication
                 size_t transformed = ((stored_hash << 13) | (stored_hash >> 51)) * PRIME;
                 // XOR the transformed value with original hash
-                bucketIndex = (stored_hash ^ transformed) % backyard.size();
+                bucketIndex = (stored_hash ^ transformed) % backyardSize;
             } else {
                 // compute hash using murmur64a
                 // todo find out bucket size and hardcode it here for now
-                bucketIndex = frontQR.bucketIndex % backyard.size();
+                bucketIndex = frontQR.bucketIndex % backyardSize;
             }
         }
 
@@ -86,15 +86,15 @@ namespace PQF {
             finishInit(frontyardBucketIndex, hashNum, R);
         }
 
+#ifdef CUCKOO_HASH
+        inline BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t R, size_t backyardSize): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
+           finishInitCuckooHash(frontQR, hashNum, backyardSize);
+        }
+#endif
         inline BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t R): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
             // todo this is called
             // an if condition here maybe?
             // or ifdef
-#ifdef CUCKOO_HASH
-            // todo call cuckoo hash func here
-            finishInitCuckooHash(frontQR, hashNum);
-            return;
-#endif
             finishInit(frontQR.bucketIndex, hashNum, R);
         }
     };
