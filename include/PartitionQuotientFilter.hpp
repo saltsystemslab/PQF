@@ -151,8 +151,14 @@ namespace PQF {
                 if constexpr (DEBUG) {
                     FrontyardQRContainerType f = FrontyardQRContainerType(hash >> SizeRemainders, hash & HashMask);
                     assert(f.bucketIndex < frontyard.size());
+#ifdef CUCKOO_HASH
                     BackyardQRContainerType fb1(f, 0, R, backyard.size());
                     BackyardQRContainerType fb2(f, 1, R, backyard.size());
+#else
+                    BackyardQRContainerType fb1(f, 0, R);
+                    BackyardQRContainerType fb2(f, 1, R);
+#endif
+
                     assert(fb1.bucketIndex < backyard.size() && fb2.bucketIndex < backyard.size());
                 }
                 return FrontyardQRContainerType(hash >> RealRemainderSize, hash & HashMask);
@@ -276,10 +282,13 @@ namespace PQF {
                 if constexpr (DIAGNOSTICS) {
                     backyardLookupCount ++;
                 }
-
+#ifdef CUCKOO_HASH
                 BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R, backyard.size());
                 BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R, backyard.size());
-                
+#else
+                BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R);
+                BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
+#endif
                 lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
 
                 std::uint64_t retval = queryBackyard(frontyardQR, firstBackyardQR, secondBackyardQR);
@@ -295,10 +304,13 @@ namespace PQF {
                 if constexpr (DIAGNOSTICS) {
                     backyardLookupCount ++;
                 }
-
+#ifdef CUCKOO_HASH
                 BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R, backyard.size());
                 BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R, backyard.size());
-                
+#else
+                BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R);
+                BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
+#endif
                 lockBackyard(firstBackyardQR.bucketIndex, secondBackyardQR.bucketIndex);
 
                 bool retval = queryBackyard(frontyardQR, firstBackyardQR, secondBackyardQR);
@@ -412,8 +424,14 @@ namespace PQF {
                     b.frontyard[i].deconstruct(bfrontkeys);
                     
                     FrontyardQRContainerType frontyardQR(i*BucketNumMiniBuckets, 0);
+#ifdef CUCKOO_HASH
+                    BackyardQRContainerType firstBackyardQR(frontyardQR, 0, a.R, backyard.size());
+                    BackyardQRContainerType secondBackyardQR(frontyardQR, 1, a.R, backyard.size());
+#else
                     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, a.R);
                     BackyardQRContainerType secondBackyardQR(frontyardQR, 1, a.R);
+#endif
+
                     a.backyard[firstBackyardQR.bucketIndex].deconstruct(aback1keys);
                     b.backyard[firstBackyardQR.bucketIndex].deconstruct(bback1keys);
                     a.backyard[secondBackyardQR.bucketIndex].deconstruct(aback2keys);
@@ -478,8 +496,14 @@ namespace PQF {
                 std::shuffle(overflow.begin(), overflow.end(), generator);
                 for(size_t i=0; i < overflow.size(); i++) {
                     auto qr = overflow[i];
+#ifdef CUCKOO_HASH
                     BackyardQRContainerType firstBackyardQR(qr, 0, R, backyard.size());
                     BackyardQRContainerType secondBackyardQR(qr, 1, R, backyard.size());
+#else
+                    BackyardQRContainerType firstBackyardQR(qr, 0, R);
+                    BackyardQRContainerType secondBackyardQR(qr, 1, R);
+#endif
+
                     if(!insertOverflow(qr, firstBackyardQR, secondBackyardQR)) {
                         std::cerr << "Failed goomogus" << std::endl;
                         exit(-1);
