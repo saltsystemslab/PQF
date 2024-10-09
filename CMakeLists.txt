@@ -5,8 +5,7 @@ set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
 project(BenchFilter)
 
 find_package(OpenSSL REQUIRED)
-
-# set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "-march=native -pthread")
@@ -66,6 +65,6 @@ else()
     message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
 
-target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
+target_compile_options(Tester PRIVATE -pg -Wall)
 target_link_libraries(Tester PRIVATE vqf)
 target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
