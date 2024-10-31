@@ -39,6 +39,7 @@ namespace PQF {
                 if constexpr (DEBUG)
                     assert(whichFrontyardBucket < 16);
                 bucketIndex = frontyardBucketIndex / ConsolidationFactor;
+                // todo why is this required?
                 remainder += whichFrontyardBucket << RemainderBits;
             }
             else {
@@ -63,14 +64,46 @@ namespace PQF {
             }
         }
 
+        inline void finishInitCuckooHash(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, size_t backyardSize, uint64_t R) {
+            // just do a simple cuckoo hash. Maybe use murmur hash?
+            if (hashNum) {
+                // this should do the XOR
+                const uint64_t PRIME = 16777619;
+                std::uint64_t fbiMinusLowBits = frontQR.bucketIndex / ConsolidationFactor; // f2
+                std::uint64_t lowBits = frontQR.bucketIndex % ConsolidationFactor; // l1
+                uint64_t stored_hash = fbiMinusLowBits/ConsolidationFactor + lowBits*R;
+                // Create a different hash value using rotation and prime multiplication
+//                size_t transformed = ((stored_hash << 13) | (stored_hash >> 51)) * PRIME;
+                // XOR the transformed value with original hash
+               bucketIndex = (stored_hash ^ PRIME) % backyardSize;
+		whichFrontyardBucket = (frontQR.bucketIndex % ConsolidationFactor) + ConsolidationFactorP2;
+            } else {
+                // compute hash using murmur64a
+                // todo find out bucket size and hardcode it here for now
+                std::uint64_t fbiMinusLowBits = frontQR.bucketIndex / ConsolidationFactor; // f2
+                std::uint64_t lowBits = frontQR.bucketIndex % ConsolidationFactor; // l1
+                bucketIndex = fbiMinusLowBits/ConsolidationFactor + lowBits*R;
+whichFrontyardBucket = fbiMinusLowBits % ConsolidationFactor;
+            }
+        }
+
         inline BackyardQRContainer(std::size_t quotient, std::uint64_t remainder, bool hashNum, std::uint64_t R): /*quotient{quotient},*/ realRemainder{remainder}, miniBucketIndex{quotient%NumMiniBuckets}, remainder(remainder) {
             std::uint64_t frontyardBucketIndex = quotient/NumMiniBuckets;
             finishInit(frontyardBucketIndex, hashNum, R);
         }
 
+#ifdef CUCKOO_HASH
+        inline BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t R, size_t backyardSize): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
+           finishInitCuckooHash(frontQR, hashNum, backyardSize, R);
+        }
+#else
         inline BackyardQRContainer(FrontyardQRContainer<NumMiniBuckets> frontQR, bool hashNum, std::uint64_t R): /*quotient{frontQR.quotient},*/ realRemainder{frontQR.remainder}, miniBucketIndex{frontQR.miniBucketIndex}, remainder{frontQR.remainder} {
+            // todo this is called
+            // an if condition here maybe?
+            // or ifdef
             finishInit(frontQR.bucketIndex, hashNum, R);
         }
+#endif
     };
 
 }
