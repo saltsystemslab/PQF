@@ -73,15 +73,17 @@ namespace PQF {
                 std::uint64_t lowBits = frontQR.bucketIndex % ConsolidationFactor; // l1
                 uint64_t stored_hash = fbiMinusLowBits/ConsolidationFactor + lowBits*R;
                 // Create a different hash value using rotation and prime multiplication
-                size_t transformed = ((stored_hash << 13) | (stored_hash >> 51)) * PRIME;
+//                size_t transformed = ((stored_hash << 13) | (stored_hash >> 51)) * PRIME;
                 // XOR the transformed value with original hash
-                bucketIndex = (stored_hash ^ transformed) % backyardSize;
+               bucketIndex = (stored_hash ^ PRIME) % backyardSize;
+		whichFrontyardBucket = (frontQR.bucketIndex % ConsolidationFactor) + ConsolidationFactorP2;
             } else {
                 // compute hash using murmur64a
                 // todo find out bucket size and hardcode it here for now
                 std::uint64_t fbiMinusLowBits = frontQR.bucketIndex / ConsolidationFactor; // f2
                 std::uint64_t lowBits = frontQR.bucketIndex % ConsolidationFactor; // l1
                 bucketIndex = fbiMinusLowBits/ConsolidationFactor + lowBits*R;
+whichFrontyardBucket = fbiMinusLowBits % ConsolidationFactor;
             }
         }
 
