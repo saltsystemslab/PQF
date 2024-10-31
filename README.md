@@ -76,3 +76,10 @@ These benchmark configurations are found in a file called ```MT_Config.txt```. I
 numactl -N 0 -m 0 ./Tester MT_Config.txt outMT.txt analysis 
 ```
 **Please be advised that running the same benchmark consecutively will erase previous results of the same benchmark.**
+## Building With Cuckoo XOR Hash Function
+The code using the PQF hashing mechanism by default. If you would like to use the cuckoo hash function for load factor experiments, please rebuild the CMake with the following command:
+```shell
+cmake -DUSE_CUCKOO_HASH=ON ..
+make
+```
+After doing so, you can run the load factor experiments to see how the failure load factor changes.
